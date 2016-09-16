@@ -22,92 +22,117 @@ module.exports = (w) => {
       return;
     }
 
-    w.debug("Initializing database");
+    function runInit() {
+      w.debug("Initializing database");
 
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION');
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
 
-      db.run('CREATE TABLE session ('
-        + '  user_id VARCHAR(10)'
-        + ', start INTEGER'
-        + ', model VARCHAR(10)'
-        + ', id INTEGER PRIMARY ASC AUTOINCREMENT'
-        + ')');
+        db.run('CREATE TABLE session ('
+          + '  user_id VARCHAR(10) NOT NULL'
+          + ', start INTEGER NOT NULL'
+          + ', end INTEGER NOT NULL'
+          + ', model VARCHAR(10) NOT NULL'
+          + ', UNIQUE (user_id, start, model)'
+          + ')');
 
-      db.run('CREATE TABLE click_data ('
-        + '  session_id INTEGER REFERENCES sessions(id)'
-        + ', start INTEGER'
-        + ', button_id VARCHAR(30)'
-        + ')');
+        db.run('CREATE TABLE click_data ('
+          + '  session_id INTEGER REFERENCES session(ROWID)'
+          + ', start INTEGER'
+          + ', button_id VARCHAR(30)'
+          + ')');
 
-      db.run('CREATE TABLE position_data ('
-        + '  session_id INTEGER REFERENCES sessions(id)'
-        + ', start INTEGER'
-        + ', x DOUBLE'
-        + ', y DOUBLE'
-        + ', z DOUBLE'
-        + ')');
+        db.run('CREATE TABLE position_data ('
+          + '  session_id INTEGER REFERENCES session(ROWID)'
+          + ', start INTEGER'
+          + ', x DOUBLE'
+          + ', y DOUBLE'
+          + ', z DOUBLE'
+          + ')');
 
-      db.run('CREATE TABLE rotation_data ('
-        + '  session_id INTEGER REFERENCES sessions(id)'
-        + ', start INTEGER'
-        + ', x DOUBLE'
-        + ', y DOUBLE'
-        + ')');
+        db.run('CREATE TABLE rotation_data ('
+          + '  session_id INTEGER REFERENCES session(ROWID)'
+          + ', start INTEGER'
+          + ', x DOUBLE'
+          + ', y DOUBLE'
+          + ')');
 
-      db.run('COMMIT');
+        db.run('COMMIT', err => {
+          return next(err, db);
+        });
+      });
+    }
+
+    db.get("SELECT ROWID FROM session WHERE 1=1 LIMIT 1", (err, row) => {
+      if (err) {
+        if (err.code === 'SQLITE_ERROR') {
+          return runInit();
+        } else {
+          throw err;
+        }
+      }
+
+      return next(null, db);
     });
-
-    return next(null, db);
   }
 
   function delete_db(path, next) {
     w.info("Nuking Database");
 
     fs.unlink(path, err => {
-      if (err) {
-        next(err);
-      } else {
-        create_db(next);
-      }
+      return next(err);
     });
   }
 
-  function _insertIntoSession(db, rows) {
-    const stmt = db.prepare("INSERT INTO session VALUES (?, ?, ?)");
-    rows.forEach(r => {
-      stmt.run(r.userId, r.start, r.model);
+  function _insertIntoSession(db, meta) {
+    db.get("SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?", meta.userId, meta.start, meta.model, (err, row) => {
+      if (!row) {
+        const stmt = db.prepare("INSERT OR ABORT INTO session(user_id, start, end, model) VALUES (?, ?, ?, ?)");
+
+        stmt.run(meta.userId, meta.start, meta.end, meta.model);
+
+        stmt.finalize();
+      }
     });
 
-    stmt.finalize();
   }
 
   function _insertIntoClickData(db, meta, rows) {
-    const stmt = db.prepare("INSERT INTO click_data VALUES ((SELECT id FROM sessions WHERE user_id=? AND start=? AND model=?), ?, ?)");
+    const stmt = db.prepare("INSERT INTO click_data(session_id, start, button_id) " +
+      "VALUES ((SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?), ?, ?)");
     rows.forEach(r => {
-      stmt.run(meta.userId, meta.start, meta.model, r.start, r.button);
+      stmt.run(meta.userId, meta.start, meta.model, r.timestamp, r.button);
     });
 
     stmt.finalize();
   }
 
-  function _insertIntoPosition(db, sessionId, rows) {
-    const stmt = db.prepare("INSERT INTO position_data VALUES (?, ?, ?, ?, ?)");
+  function _insertIntoPosition(db, meta, rows) {
+    const stmt = db.prepare("INSERT INTO position_data(session_id, start, x, y, z) " +
+      "VALUES ((SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?), ?, ?, ?, ?)");
     rows.forEach(r => {
-      stmt.run(sessionId, r.start, r.button);
+      stmt.run(meta.userId, meta.start, meta.model, r.timestamp, r.x, r.y, (r.z ? r.z : 0.0));
+    });
+
+    stmt.finalize();
+  }
+
+  function _insertIntoRotation(db, meta, rows) {
+    const stmt = db.prepare("INSERT INTO rotation_data(session_id, start, x, y) " +
+      "VALUES ((SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?), ?, ?, ?)");
+    rows.forEach(r => {
+      stmt.run(meta.userId, meta.start, meta.model, r.timestamp, r.x, r.y);
     });
 
     stmt.finalize();
   }
 
   const TABLE_MAP = {
-    'session': (db, meta, rows) => {
-      // ignore meta parameter
-      return _insertIntoSession(db, rows);
-    },
+    'session':  _insertIntoSession,
     'click': _insertIntoClickData,
-    'rotation'
-  }
+    'rotation': _insertIntoRotation,
+    'position': _insertIntoPosition
+  };
 
   function insertInto(db, table, meta, rows, next) {
     if (!db) {
@@ -118,30 +143,27 @@ module.exports = (w) => {
       return next(new Error('Received bad table value: ' + table));
     }
 
-    if (!Array.isArray(rows) && !Function.isFunction(rows)) {
+    if (!Array.isArray(rows) && !_.isFunction(rows)) {
       rows = _.compact([rows]);
-    } else if (Function.isFunction(rows)) {
+    } else if (_.isFunction(rows)) {
       // no rows specified
       next = rows;
       rows = []
     }
 
-    if (rows.length == 0) {
-      // Nothing to insert
-      return next(null);
-    }
-
+    // The following run serially
     db.serialize(() => {
       db.run("BEGIN TRANSACTION");
 
-      if (table === 'session') {
-        _insertIntoSession(db, rows);
+      let fn = TABLE_MAP[table];
+      if (!_.isFunction(fn)) {
+        db.run("ROLLBACK", () => (next(new Error(`Invalid table specified: ${table}`))));
       }
 
+      fn(db, meta, rows);
 
-      db.run("COMMIT", next);
+      db.run("COMMIT", () => (next(null)));
     });
-
   }
 
   return {
