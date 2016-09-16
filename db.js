@@ -38,24 +38,68 @@ module.exports = (w) => {
 
         db.run('CREATE TABLE click_data ('
           + '  session_id INTEGER REFERENCES session(ROWID)'
-          + ', start INTEGER'
+          + ', timestamp INTEGER'
           + ', button_id VARCHAR(30)'
           + ')');
 
         db.run('CREATE TABLE position_data ('
           + '  session_id INTEGER REFERENCES session(ROWID)'
-          + ', start INTEGER'
+          + ', timestamp INTEGER'
           + ', x DOUBLE'
           + ', y DOUBLE'
           + ', z DOUBLE'
           + ')');
 
+        db.run('CREATE TABLE zoom_data ('
+          + '  session_id INTEGER REFERENCES session(ROWID)'
+          + ', timestamp INTEGER'
+          + ', zoom DOUBLE'
+          + ')');
+
         db.run('CREATE TABLE rotation_data ('
           + '  session_id INTEGER REFERENCES session(ROWID)'
-          + ', start INTEGER'
+          + ', timestamp INTEGER'
           + ', x DOUBLE'
           + ', y DOUBLE'
           + ')');
+
+        db.run('CREATE VIEW rotation_view AS ' +
+          'SELECT session.ROWID as session_id' +
+            ', session.user_id as user_id' +
+            ', session.model as model' +
+            ', rotation_data.timestamp as time' +
+            ', strftime(\'%Y-%m-%dT%H:%M:%f\', timestamp/1000.0, \'unixepoch\') as timestamp' +
+            ', rotation_data.x as x' +
+            ', rotation_data.y as y ' +
+          'FROM session, rotation_data WHERE session.ROWID=rotation_data.session_id');
+
+        db.run('CREATE VIEW position_view AS ' +
+          'SELECT session.ROWID as session_id' +
+          ', session.user_id as user_id' +
+          ', session.model as model' +
+          ', position_data.timestamp as time' +
+          ', strftime(\'%Y-%m-%dT%H:%M:%f\', timestamp/1000.0, \'unixepoch\') as timestamp' +
+          ', position_data.x as x' +
+          ', position_data.y as y ' +
+          'FROM session, position_data WHERE session.ROWID=position_data.session_id');
+
+        db.run('CREATE VIEW zoom_view AS ' +
+          'SELECT session.ROWID as session_id' +
+          ', session.user_id as user_id' +
+          ', session.model as model' +
+          ', zoom_data.timestamp as time' +
+          ', strftime(\'%Y-%m-%dT%H:%M:%f\', timestamp/1000.0, \'unixepoch\') as timestamp' +
+          ', zoom_data.button_id as button_id' +
+          'FROM session, zoom_data WHERE session.ROWID=zoom_data.session_id');
+
+        db.run('CREATE VIEW click_view AS ' +
+          'SELECT session.ROWID as session_id' +
+          ', session.user_id as user_id' +
+          ', session.model as model' +
+          ', click_data.timestamp as time' +
+          ', strftime(\'%Y-%m-%dT%H:%M:%f\', timestamp/1000.0, \'unixepoch\') as timestamp' +
+          ', click_data.button_id as button_id' +
+          'FROM session, click_data WHERE session.ROWID=click_data.session_id');
 
         db.run('COMMIT', err => {
           return next(err, db);
@@ -98,7 +142,7 @@ module.exports = (w) => {
   }
 
   function _insertIntoClickData(db, meta, rows) {
-    const stmt = db.prepare("INSERT INTO click_data(session_id, start, button_id) " +
+    const stmt = db.prepare("INSERT INTO click_data(session_id, timestamp, button_id) " +
       "VALUES ((SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?), ?, ?)");
     rows.forEach(r => {
       stmt.run(meta.userId, meta.start, meta.model, r.timestamp, r.button);
@@ -108,7 +152,7 @@ module.exports = (w) => {
   }
 
   function _insertIntoPosition(db, meta, rows) {
-    const stmt = db.prepare("INSERT INTO position_data(session_id, start, x, y, z) " +
+    const stmt = db.prepare("INSERT INTO position_data(session_id, timestamp, x, y, z) " +
       "VALUES ((SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?), ?, ?, ?, ?)");
     rows.forEach(r => {
       stmt.run(meta.userId, meta.start, meta.model, r.timestamp, r.x, r.y, (r.z ? r.z : 0.0));
@@ -118,7 +162,7 @@ module.exports = (w) => {
   }
 
   function _insertIntoRotation(db, meta, rows) {
-    const stmt = db.prepare("INSERT INTO rotation_data(session_id, start, x, y) " +
+    const stmt = db.prepare("INSERT INTO rotation_data(session_id, timestamp, x, y) " +
       "VALUES ((SELECT ROWID FROM session WHERE user_id=? AND start=? AND model=?), ?, ?, ?)");
     rows.forEach(r => {
       stmt.run(meta.userId, meta.start, meta.model, r.timestamp, r.x, r.y);

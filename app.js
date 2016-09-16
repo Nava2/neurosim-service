@@ -40,7 +40,7 @@ var app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -143,27 +143,51 @@ function initApp() {
 
     });
 
-    // app.post('/query', (req, res) => {
-    //
-    //   let queryStr = req.params.query;
-    //
-    //   function render(err, rows) {
-    //
-    //   }
-    //
-    //   if (queryStr) {
-    //
-    //     // Query the database
-    //     db.all(queryStr, (err, rows) => {
-    //       render(err, rows);
-    //     });
-    //
-    //   } else {
-    //     render(null, []);
-    //   }
-    //
-    //
-    // });
+    app.get('/query', (req, res) => {
+      res.render('query', {
+        "queryStr": '',
+        "rowHeaders": [],
+        "rows": []
+      });
+    });
+
+    app.post('/query', (req, res, next) => {
+
+      let queryStr = req.body.query || '';
+
+      function render(err, rows) {
+        if (err) {
+          return res.render('query', {
+            "queryStr": queryStr,
+            "error": err
+          });
+        }
+
+        let headers = [];
+        if (rows.length > 0) {
+          headers = Object.keys(rows[0]);
+        }
+
+        res.render('query', {
+          "queryStr": queryStr,
+          "rowHeaders": headers,
+          "rows": rows
+        });
+      }
+
+      if (queryStr) {
+
+        // Query the database
+        db.all(queryStr, (err, rows) => {
+          render(err, rows);
+        });
+
+      } else {
+        render(null, []);
+      }
+
+
+    });
 
     // catch 404 and forward to error handler
     app.use(function(req, res, next) {
