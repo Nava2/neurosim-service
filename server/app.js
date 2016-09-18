@@ -6,11 +6,10 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
 
-
 const w = require('winston');
 const moment = require('moment');
 
-const dblib = require('./db')(w);
+const dblib = require('../lib/db')(w);
 
 const argv = require('minimist')(process.argv.slice(2), {
   boolean: ['debug'],
@@ -140,52 +139,6 @@ function initApp() {
           });
         });
       });
-
-    });
-
-    app.get('/query', (req, res) => {
-      res.render('query', {
-        "queryStr": '',
-        "rowHeaders": [],
-        "rows": []
-      });
-    });
-
-    app.post('/query', (req, res, next) => {
-
-      let queryStr = req.body.query || '';
-
-      function render(err, rows) {
-        if (err) {
-          return res.render('query', {
-            "queryStr": queryStr,
-            "error": err
-          });
-        }
-
-        let headers = [];
-        if (rows.length > 0) {
-          headers = Object.keys(rows[0]);
-        }
-
-        res.render('query', {
-          "queryStr": queryStr,
-          "rowHeaders": headers,
-          "rows": rows
-        });
-      }
-
-      if (queryStr) {
-
-        // Query the database
-        db.all(queryStr, (err, rows) => {
-          render(err, rows);
-        });
-
-      } else {
-        render(null, []);
-      }
-
 
     });
 

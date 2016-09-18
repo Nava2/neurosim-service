@@ -43,7 +43,14 @@ block content
 
     script(type='text/javascript').
         $(function () {
-            var mirror = CodeMirror.fromTextArea($('#queryBox').get(0), {
+            var $queryBox = $('#queryBox');
+
+            var prevQuery = "#{queryStr.replace("'", "\\'")}";
+            if (prevQuery !== '') {
+                $queryBox.text(prevQuery);
+            }
+
+            var mirror = CodeMirror.fromTextArea($queryBox.get(0), {
                 mode: "text/x-sql",
                 extraKeys: { "Ctrl-Space": "autocomplete" },
                 matchBrackets: true,
@@ -101,10 +108,5 @@ block content
                     'query': mirror.getValue()
                 });
             });
-
-            var prevQuery = '#{queryStr}'.trim();
-            if (prevQuery !== '') {
-                mirror.setValue(prevQuery);
-            }
         });
 
