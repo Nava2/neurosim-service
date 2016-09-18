@@ -8,6 +8,9 @@ var bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const w = require('winston');
 const moment = require('moment');
+const _ = require('lodash');
+
+const stringify = require('csv-stringify');
 
 // const dblib = require('../server/db')(w);
 
@@ -63,7 +66,13 @@ app.get('/query', (req, res) => {
   });
 });
 
-app.post('/query', (req, res, next) => {
+function fetchQuery(query, next) {
+  db.all(query, (err, rows) => {
+    next(err, rows);
+  });
+}
+
+app.post('/query', (req, res) => {
 
   let queryStr = req.body.query || '';
 
@@ -83,22 +92,54 @@ app.post('/query', (req, res, next) => {
     res.render('query', {
       "queryStr": queryStr,
       "rowHeaders": headers,
-      "rows": rows
+      "rows": _.take(30, rows)
     });
   }
 
   if (queryStr) {
 
     // Query the database
-    db.all(queryStr, (err, rows) => {
-      render(err, rows);
-    });
+    fetchQuery(queryStr, render)
 
   } else {
     render(null, []);
   }
+});
 
+app.get('/download.csv', (req, res, next) => {
+  let query = req.query.query || '';
 
+  if (!query) {
+    return next(new Error('Invalid query specified'));
+  }
+
+  query = decodeURI(query).trim()
+    .replace("%3D", "=")
+    .replace("%3B", ";");
+
+  fetchQuery(query, (err, rows) => {
+    if (err) {
+      return next(err);
+    }
+
+    let headers = [];
+    if (rows.length > 0) {
+      headers = Object.keys(rows[0]);
+    }
+
+    // extract everything as an array of arrays of vals
+    // let data = rows.map(r => (_.map(r, v => (v)));
+
+    stringify(rows, { header: true, columns: headers}, (err, output) => {
+      if (err) {
+        return next(err);
+      }
+
+      res.type('csv');
+      res.send(output);
+    });
+
+  });
 });
 
 // catch 404 and forward to error handler

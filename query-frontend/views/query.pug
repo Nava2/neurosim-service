@@ -23,6 +23,7 @@ block content
             .row
                 .col-sm-offset-9.col-sm-3
                     button#CSV-button.btn.btn-default.btn-block.pull-right Download
+
             .row
                 table.table.table-bordered.table-condensed
                     thead
@@ -44,10 +45,14 @@ block content
     script(type='text/javascript').
         $(function () {
             var $queryBox = $('#queryBox');
+            var $csvButton = $("#CSV-button");
 
             var prevQuery = "#{queryStr.replace("'", "\\'")}";
             if (prevQuery !== '') {
                 $queryBox.text(prevQuery);
+                $csvButton.prop('disabled', false);
+            } else {
+                $csvButton.prop('disabled', true);
             }
 
             var mirror = CodeMirror.fromTextArea($queryBox.get(0), {
@@ -107,6 +112,14 @@ block content
                 $.post('/query', {
                     'query': mirror.getValue()
                 });
+            });
+
+            $csvButton.click(function () {
+                var params = $.param({
+                    query: prevQuery
+                });
+
+                window.open('/download.csv?' + encodeURI(params));
             });
         });
 

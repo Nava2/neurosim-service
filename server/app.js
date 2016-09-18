@@ -60,7 +60,6 @@ function initApp() {
   dblib.create_db(argv.database, (err, db) => {
     if (err) throw err;
 
-
     /**
      {
         "start": "2016-04-05T",
@@ -90,6 +89,8 @@ function initApp() {
     }
      */
     app.post('/session', (req, res) => {
+
+      req.accepts('application/json');
 
       const userId = req.body.userId;
       const startTime = moment(req.body.start.trim()).valueOf();
