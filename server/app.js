@@ -6,11 +6,10 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
 
-
 const w = require('winston');
 const moment = require('moment');
 
-const dblib = require('./db')(w);
+const dblib = require('../lib/db')(w);
 
 const argv = require('minimist')(process.argv.slice(2), {
   boolean: ['debug'],
@@ -40,7 +39,7 @@ var app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -60,7 +59,6 @@ function initApp() {
 
   dblib.create_db(argv.database, (err, db) => {
     if (err) throw err;
-
 
     /**
      {
@@ -91,6 +89,8 @@ function initApp() {
     }
      */
     app.post('/session', (req, res) => {
+
+      req.accepts('application/json');
 
       const userId = req.body.userId;
       const startTime = moment(req.body.start.trim()).valueOf();
@@ -142,28 +142,6 @@ function initApp() {
       });
 
     });
-
-    // app.post('/query', (req, res) => {
-    //
-    //   let queryStr = req.params.query;
-    //
-    //   function render(err, rows) {
-    //
-    //   }
-    //
-    //   if (queryStr) {
-    //
-    //     // Query the database
-    //     db.all(queryStr, (err, rows) => {
-    //       render(err, rows);
-    //     });
-    //
-    //   } else {
-    //     render(null, []);
-    //   }
-    //
-    //
-    // });
 
     // catch 404 and forward to error handler
     app.use(function(req, res, next) {
