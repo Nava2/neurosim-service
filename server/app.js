@@ -1,13 +1,15 @@
-var express = require('express');
-var path = require('path');
-var favicon = require('serve-favicon');
-var logger = require('morgan');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
+'use strict';
 
+const express = require('express');
+const path = require('path');
+const favicon = require('serve-favicon');
+const logger = require('morgan');
+const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
 
 const w = require('winston');
 const moment = require('moment');
+const _ = require('lodash');
 
 const dblib = require('../lib/db')(w);
 
@@ -28,18 +30,14 @@ if (argv.quiet) {
 }
 
 if (argv.debug && !argv.database) {
-  argv.database = './student-data.debug.db';
+  argv.database = __dirname + '/student-data.debug.db';
 } else {
-  argv.database = './student-data.db';
+  argv.database = __dirname + '/student-data.db';
 }
 
 // Init the express server
 
-var app = express();
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
+let app = express();
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -49,144 +47,179 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const STREAM_TABLE_MAPPING = {
-  'click': 'click_data',
-  'position': 'position_data',
-  'rotation': 'rotation_data'
-};
+app.set('view engine', 'pug');
 
-function initApp() {
+function initApp(err, db) {
 
-  dblib.create_db(argv.database, (err, db) => {
-    if (err) throw err;
+  if (err) throw err;
 
-    /**
-     {
-        "start": "2016-04-05T",
-        "end": "2016-04-05T",
-        "stream": "click",
-        "userId": "kbright2",
-        "model": "brain_3d",
-        "data": [
-            {
-                "timestamp": "2016....",
-                "button": "button_id"
-            },
+  app.route('/', (req, res) => {
+    res.status(404);
+    res.send();
+  });
 
-            { // position
-                "timestamp": "2016....",
-                "x": 20.0,
-                "y": 23.4,
-                "z": 32.4
-            },
+  app.post('/session/end/:uuid', (req, res) => {
+    req.accepts('application/json');
+    res.type('text');
 
-            {   // rotation
-                "timestamp": "234sfsadf",
-                "x": 234.0,
-                "y": 234.0
-            }
-        ]
+    const sessionId = req.params.uuid;
+    const end = _.isString(req.body.end) ? moment(req.body.end.trim()).valueOf() : null;
+
+    if (!end) {
+      return res.status(403).send(`false:No end-time specified.`);
     }
-     */
-    app.post('/session', (req, res) => {
 
-      req.accepts('application/json');
-
-      const userId = req.body.userId;
-      const startTime = moment(req.body.start.trim()).valueOf();
-      const endTime = moment(req.body.end.trim()).valueOf();
-      const stream = req.body.stream.toLowerCase().trim();
-      const model = req.body.model.toLowerCase().trim();
-      const data = req.body.data.map(v => {
-        v.timestamp = moment(v.timestamp.trim()).valueOf();
-        return v;
-      });
-
-      let table = STREAM_TABLE_MAPPING[stream];
-      if (!table) {
-        res.status(403).json({
-          success: false,
-          error: `Unknown stream: ${stream}`
-        });
-
-        return;
+    dblib.session.open_exists(db, sessionId, (err, exists) => {
+      if (err) {
+        return res.status(403).send(`false:${err.message}`);
       }
 
-      let meta = {
-        userId: userId,
-        start: startTime,
-        end: endTime,
-        model: model
-      };
-
-      dblib.insertInto(db, 'session', meta, [], err => {
-        if (err) {
-          return res.status(403).json({
-            success: false,
-            error: err.toString()
-          });
-        }
-
-        dblib.insertInto(db, stream, meta, data, err => {
+      if (!exists) {
+        return res.status(403).send(`false:Session ID (${sessionId}) does not exist.`);
+      } else {
+        dblib.session.set_end(db, sessionId, end, err => {
           if (err) {
-            return res.status(403).json({
-              success: false,
-              error: err.toString()
-            });
+            return res.status(403).send(`false:${err.message}`);
           }
 
-          return res.json({
-            success: true
-          });
+          return res.send(`true:${sessionId}`);
         });
-      });
-
+      }
     });
+  });
 
-    // catch 404 and forward to error handler
-    app.use(function(req, res, next) {
-      var err = new Error('Not Found');
-      err.status = 404;
-      next(err);
+  app.post('/session/new', (req, res) => {
+    req.accepts('application/json');
+    res.type('text');
+
+    const userId = req.body.userId;
+    const startTime = moment(req.body.start.trim()).valueOf();
+    const model = req.body.model.toLowerCase().trim();
+
+    let meta = {
+      userId: userId,
+      start: startTime,
+      model: model
+    };
+
+    dblib.session.create(db, meta, (err, uuid) => {
+      if (err) {
+        return res.status(403).send(`${false}:${err.message}`);
+      }
+
+      w.info(`Created new session: ${uuid}`);
+      return res.send(`true:${uuid}`);
     });
+  });
 
-    // error handlers
+  app.post('/spatial/:uuid', (req, res) => {
+    req.accepts('application/json');
+    res.type('text');
 
-    // development error handler
-    // will print stacktrace
-    if (app.get('env') === 'development') {
-      app.use(function(err, req, res, next) {
-        res.status(err.status || 500);
-        res.render('error', {
-          message: err.message,
-          error: err
+    const sessionId = req.params.uuid;
+    const data = req.body.data;
+
+    dblib.session.open_exists(db, sessionId, (err, exists) => {
+      if (err) {
+        return res.status(403).send(`false:${err.message}`);
+      }
+
+      if (!exists) {
+        return res.status(403).send(`false:Session ID (${sessionId}) does not exist.`);
+      } else {
+        dblib.spatial.add(db, sessionId, data, err => {
+          if (err) {
+            return res.status(403).send(`false:${err.message}`);
+          }
+
+          return res.send(`true:${data.length}`);
         });
-      });
-    }
+      }
+    });
+  });
 
-    // production error handler
-    // no stacktraces leaked to user
+  app.post('/click/:uuid', (req, res) => {
+    req.accepts('application/json');
+    res.type('text');
+
+    const sessionId = req.params.uuid;
+    const data = req.body.data;
+
+    dblib.session.open_exists(db, sessionId, (err, exists) => {
+      if (err) {
+        return res.status(403).send(`false:${err.message}`);
+      }
+
+      if (!exists) {
+        return res.status(403).send(`false:Session ID (${sessionId}) does not exist.`);
+      } else {
+        dblib.click.add(db, sessionId, data, err => {
+          if (err) {
+            return res.status(403).send(`false:${err.message}`);
+          }
+
+          return res.send(`true:${data.length}`);
+        });
+      }
+    });
+  });
+
+  // catch 404 and forward to error handler
+  app.use(function(req, res, next) {
+    let err = new Error('Not Found');
+    err.status = 404;
+    next(err);
+  });
+
+  // error handlers
+
+  // development error handler
+  // will print stacktrace
+  if (app.get('env') === 'development') {
     app.use(function(err, req, res, next) {
       res.status(err.status || 500);
       res.render('error', {
         message: err.message,
-        error: {}
+        error: err
       });
     });
+  }
 
-
+  // production error handler
+  // no stacktraces leaked to user
+  app.use(function(err, req, res, next) {
+    res.status(err.status || 500);
+    res.render('error', {
+      message: err.message,
+      error: {}
+    });
   });
 }
 
-if (argv.debug) {
-  dblib.delete_db(argv.database, err => {
-    if (err && err.code != 'ENOENT') throw err;
+dblib.open_db(argv.database, (err, db) => {
+  if (err) throw err;
 
-    initApp();
-  });
-} else {
-  initApp();
-}
+  function next(err, db) {
+    if (err) {
+      return initApp(err);
+    }
+
+    return dblib.init_db(db, initApp);
+  }
+
+  if (argv.debug) {
+    dblib.delete_db(db, err => {
+      if (err && err.code != 'ENOENT') {
+        return next(err, null);
+      }
+
+      return next(null, db);
+    });
+  } else {
+    return next(null, db);
+  }
+});
+
 
 
 module.exports = app;
