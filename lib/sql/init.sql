@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS spatial_data (
   , timestamp INTEGER NOT NULL
   , x DOUBLE NOT NULL
   , y DOUBLE NOT NULL
-  , z DOUBLE DEFAULT 0.0
   , zoom DOUBLE DEFAULT 1.0
   , rot_x DOUBLE NOT NULL
   , rot_y DOUBLE NOT NULL
@@ -36,7 +35,6 @@ CREATE VIEW spatial_view AS
     , strftime('%Y-%m-%dT%H:%M:%f', timestamp/1000.0, 'unixepoch') as timestamp
     , x DOUBLE
     , y DOUBLE
-    , z DOUBLE
     , zoom DOUBLE
     , rot_x DOUBLE
     , rot_y DOUBLE
@@ -52,8 +50,9 @@ CREATE VIEW rotation_view AS
     , model
     , spatial_data.timestamp as time_int
     , strftime('%Y-%m-%dT%H:%M:%f', timestamp/1000.0, 'unixepoch') as timestamp
-    , x
-    , y
+    , rot_x
+    , rot_y
+    , rot_z
   FROM session_data, spatial_data
   WHERE session_data.uuid=spatial_data.session_id
   ORDER BY user_id, time_int;
@@ -67,18 +66,6 @@ CREATE VIEW position_view AS
     , strftime('%Y-%m-%dT%H:%M:%f', timestamp/1000.0, 'unixepoch') as timestamp
     , x
     , y
-    , z
- FROM session_data, spatial_data
- WHERE session_data.uuid=spatial_data.session_id
- ORDER BY user_id, time_int;
-
-CREATE VIEW zoom_view AS
-  SELECT
-      session_id
-    , user_id
-    , model
-    , spatial_data.timestamp as time_int
-    , strftime('%Y-%m-%dT%H:%M:%f', timestamp/1000.0, 'unixepoch') as timestamp
     , zoom
  FROM session_data, spatial_data
  WHERE session_data.uuid=spatial_data.session_id
