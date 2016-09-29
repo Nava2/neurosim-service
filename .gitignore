@@ -1,5 +1,6 @@
 output/
 *.db
+*.db-journal
 
 # Logs
 logs
