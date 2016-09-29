@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS click_data (
   , UNIQUE(session_id, timestamp)
 );
 
-CREATE VIEW spatial_view AS
+CREATE VIEW IF NOT EXISTS spatial_view AS
   SELECT
       session_id
     , user_id
@@ -43,7 +43,7 @@ CREATE VIEW spatial_view AS
   WHERE session_data.uuid=spatial_data.session_id
   ORDER BY user_id, time_int;
 
-CREATE VIEW rotation_view AS
+CREATE VIEW IF NOT EXISTS rotation_view AS
   SELECT
       session_id
     , user_id
@@ -57,7 +57,7 @@ CREATE VIEW rotation_view AS
   WHERE session_data.uuid=spatial_data.session_id
   ORDER BY user_id, time_int;
 
-CREATE VIEW position_view AS
+CREATE VIEW IF NOT EXISTS position_view AS
   SELECT
       session_id
     , user_id
@@ -71,7 +71,7 @@ CREATE VIEW position_view AS
  WHERE session_data.uuid=spatial_data.session_id
  ORDER BY user_id, time_int;
 
-CREATE VIEW click_view AS
+CREATE VIEW IF NOT EXISTS click_view AS
   SELECT
       session_id
     , user_id

@@ -58,36 +58,6 @@ function initApp(err, db) {
     res.send();
   });
 
-  app.post('/session/end/:uuid', (req, res) => {
-    req.accepts('application/json');
-    res.type('text');
-
-    const sessionId = req.params.uuid;
-    const end = _.isString(req.body.end) ? moment(req.body.end.trim()).valueOf() : null;
-
-    if (!end) {
-      return res.status(403).send(`false:No end-time specified.`);
-    }
-
-    dblib.session.open_exists(db, sessionId, (err, exists) => {
-      if (err) {
-        return res.status(403).send(`false:${err.message}`);
-      }
-
-      if (!exists) {
-        return res.status(403).send(`false:Session ID (${sessionId}) does not exist.`);
-      } else {
-        dblib.session.set_end(db, sessionId, end, err => {
-          if (err) {
-            return res.status(403).send(`false:${err.message}`);
-          }
-
-          return res.send(`true:${sessionId}`);
-        });
-      }
-    });
-  });
-
   app.post('/session/new', (req, res) => {
     req.accepts('application/json');
     res.type('text');
@@ -104,13 +74,44 @@ function initApp(err, db) {
 
     dblib.session.create(db, meta, (err, uuid) => {
       if (err) {
-        return res.status(403).send(`${false}:${err.message}`);
+        return res.status(403).send(err.message);
       }
 
       w.info(`Created new session: ${uuid}`);
-      return res.send(`true:${uuid}`);
+      return res.send(uuid);
     });
   });
+
+  app.post('/session/end/:uuid', (req, res) => {
+    req.accepts('application/json');
+    res.type('text');
+
+    const sessionId = req.params.uuid;
+    const end = _.isString(req.body.end) ? moment(req.body.end.trim()).valueOf() : null;
+
+    if (!end) {
+      return res.status(403).send(`No end-time specified.`);
+    }
+
+    dblib.session.open_exists(db, sessionId, (err, exists) => {
+      if (err) {
+        return res.status(403).send(err.message);
+      }
+
+      if (!exists) {
+        return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+      } else {
+        dblib.session.set_end(db, sessionId, end, err => {
+          if (err) {
+            return res.status(403).send(err.message);
+          }
+
+          return res.send(sessionId);
+        });
+      }
+    });
+  });
+
 
   app.post('/spatial/:uuid', (req, res) => {
     req.accepts('application/json');
@@ -121,18 +122,18 @@ function initApp(err, db) {
 
     dblib.session.open_exists(db, sessionId, (err, exists) => {
       if (err) {
-        return res.status(403).send(`false:${err.message}`);
+        return res.status(403).send(err.message);
       }
 
       if (!exists) {
-        return res.status(403).send(`false:Session ID (${sessionId}) does not exist.`);
+        return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
       } else {
         dblib.spatial.add(db, sessionId, data, err => {
           if (err) {
-            return res.status(403).send(`false:${err.message}`);
+            return res.status(403).send(err.message);
           }
 
-          return res.send(`true:${data.length}`);
+          return res.send(`${data.length}`);
         });
       }
     });
@@ -147,18 +148,18 @@ function initApp(err, db) {
 
     dblib.session.open_exists(db, sessionId, (err, exists) => {
       if (err) {
-        return res.status(403).send(`false:${err.message}`);
+        return res.status(403).send(err.message);
       }
 
       if (!exists) {
-        return res.status(403).send(`false:Session ID (${sessionId}) does not exist.`);
+        return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
       } else {
         dblib.click.add(db, sessionId, data, err => {
           if (err) {
-            return res.status(403).send(`false:${err.message}`);
+            return res.status(403).send(err.message);
           }
 
-          return res.send(`true:${data.length}`);
+          return res.send(`${data.length}`);
         });
       }
     });
