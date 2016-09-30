@@ -161,7 +161,7 @@ module.exports = (argv, postInit) => {
     // development error handler
     // will print stacktrace
     if (app.get('env') === 'development') {
-      app.use(function(err, req, res, next) {
+      app.use(function(err, req, res) {
         res.status(err.status || 500);
         res.render('error', {
           message: err.message,
@@ -196,7 +196,15 @@ module.exports = (argv, postInit) => {
       return dblib.init_db(db, initApp);
     }
 
-    if (argv.debug) {
+    if (argv.purge) {
+      dblib.purge_db(db, err => {
+        if (err && err.code != 'ENOENT') {
+          return next(err, null);
+        }
+
+        return next(null, db);
+      });
+    } else if (argv.debug) {
       dblib.delete_db(db, err => {
         if (err && err.code != 'ENOENT') {
           return next(err, null);

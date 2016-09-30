@@ -9,6 +9,7 @@ const argv = require('minimist')(process.argv.slice(2), {
   string: ['database'],
   default: {
     'debug': false,
+    'purge': false,
     'quiet': false,
     'log-level': 'info'
   }

@@ -1,15 +1,7 @@
--- Drop views:
+-- Now delete all of the table contents:
 
-DROP VIEW IF EXISTS click_view;
-DROP VIEW IF EXISTS zoom_view;
-DROP VIEW IF EXISTS position_view;
-DROP VIEW IF EXISTS rotation_view;
-DROP VIEW IF EXISTS spatial_view;
-
--- Now drop tables:
-
-DROP TABLE IF EXISTS click_data;
-DROP TABLE IF EXISTS spatial_data;
-DROP TABLE IF EXISTS session_data;
+DELETE FROM click_data WHERE 1=1;
+DELETE FROM spatial_data WHERE 1=1;
+DELETE FROM session_data WHERE 1=1;
 
 
