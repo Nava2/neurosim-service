@@ -4,7 +4,23 @@
  * Module dependencies.
  */
 
-var app = require('../app');
+const argv = require('minimist')(process.argv.slice(2), {
+  boolean: ['debug'],
+  string: ['database'],
+  default: {
+    'debug': false,
+    'quiet': false,
+    'log-level': 'info'
+  }
+});
+
+if (argv.debug && !argv.database) {
+  argv.database = __dirname + '/student-data.debug.db';
+} else {
+  argv.database = __dirname + '/student-data.db';
+}
+
+var app = require('../app')(argv);
 var debug = require('debug')('brainsim:server');
 var http = require('http');
 

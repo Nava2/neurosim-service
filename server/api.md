@@ -3,7 +3,7 @@
 All response errors follow: 
 
 ```
-false:Some error message description.
+Some error message description.
 ```
 
 ## Sessions
@@ -31,7 +31,7 @@ false:Some error message description.
 Good:
 
 ```
-true:3fe4cb80-8522-11e6-958b-f38f0e68ccfd
+3fe4cb80-8522-11e6-958b-f38f0e68ccfd
 ```
 
 `3fe4cb80-8522-11e6-958b-f38f0e68ccfd` is the uuid of the session.
@@ -62,7 +62,7 @@ true:3fe4cb80-8522-11e6-958b-f38f0e68ccfd
 Good:
 
 ```
-true:3fe4cb80-8522-11e6-958b-f38f0e68ccfd
+3fe4cb80-8522-11e6-958b-f38f0e68ccfd
 ```
 
 `3fe4cb80-8522-11e6-958b-f38f0e68ccfd` is the uuid of the session now ended.
@@ -83,32 +83,35 @@ true:3fe4cb80-8522-11e6-958b-f38f0e68ccfd
 {
   "data": [
     {
-        "timestamp": "2016-04-05T12:02:32.022",
+        "start": "2016-04-05T12:02:32.022",
+        "end": "2016-04-05T12:02:32.022",
         "x": 20.0,
         "y": 23.4,
         "zoom": -1.0,
-        "rot_x": 234.0,
-        "rot_y": 234.0,
-        "rot_z": 234.0
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
     },
 
     {   
-        "timestamp": "2016-04-05T12:02:33.022",
+        "start": "2016-04-05T12:02:33.022",
+        "end": "2016-04-05T12:02:32.022",
         "x": 20.0,
         "y": 23.4,
         "zoom": 32.4,
-        "rot_x": 234.0,
-        "rot_y": 234.0,
-        "rot_z": 234.0
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
     },
     {
-        "timestamp": "2016-04-05T12:02:34.022",
+        "start": "2016-04-05T12:02:33.022",
+        "end": "2016-04-05T12:02:32.022",
         "x": 20.0,
         "y": 23.4,
         "zoom": 3.4,
-        "rot_x": 234.0,
-        "rot_y": 234.0,
-        "rot_z": 234.0
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
     }
   ]
 }
@@ -117,7 +120,7 @@ true:3fe4cb80-8522-11e6-958b-f38f0e68ccfd
 #### Response
 
 ```
-true:3
+3
 ```
 
 In this example, `3` is the number of rows added.
@@ -151,7 +154,7 @@ In this example, `3` is the number of rows added.
 #### Response
 
 ```
-true:2
+2
 ```
 
 Added `2` rows from the previous call. 
