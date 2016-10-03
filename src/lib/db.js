@@ -21,12 +21,21 @@ module.exports = (w) => {
     }
 
     const finalize = (prev_err) => {
-      stmt.finalize(err => {
-        if (prev_err) return next(prev_err, rows.length);
-        if (err) return next(err, rows.length);
+      stmt.finalize(fin_err => {
 
-        db.exec("COMMIT TRANSACTION", err => {
-          return next(err, rows.length);
+        db.exec("COMMIT TRANSACTION", trans_err => {
+          let errs = _.compact([prev_err, fin_err, trans_err]);
+
+          let out_err = null;
+          if (errs.length > 0) {
+            if (errs.length == 1) {
+              out_err = errs[0];
+            } else {
+              out_err = new Error(_.reduce(errs, (r, e, i) => (r + `\t${i}) ${e.message}\n`), 'Multiple errors:\n'));
+            }
+          }
+
+          return next(out_err, rows.length);
         });
       });
     };
@@ -170,7 +179,7 @@ module.exports = (w) => {
 
       const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
         .map(r => {
-          r["$timestamp"] = moment(r["$timestamp"]).valueOf()/1000.0; // fix timestamps
+          r["$timestamp"] = r["$timestamp"] ? moment(r["$timestamp"]).valueOf()/1000.0 : null; // fix timestamps
           r["$session_id"] = session_id;
 
           return r;
