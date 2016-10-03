@@ -12,7 +12,7 @@ const _ = require('lodash');
 
 const stringify = require('csv-stringify');
 
-// const dblib = require('../server/db')(w);
+// const dblib = require('../api/db')(w);
 
 const argv = require('minimist')(process.argv.slice(2), {
   boolean: ['debug'],
@@ -31,12 +31,12 @@ if (argv.quiet) {
 }
 
 if (argv.debug && !argv.database) {
-  argv.database = '../server/student-data.debug.db';
+  argv.database = '../api/student-data.debug.db';
 } else {
-  argv.database = '../server/student-data.db';
+  argv.database = '../api/student-data.db';
 }
 
-// Init the express server
+// Init the express api
 
 var app = express();
 

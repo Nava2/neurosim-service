@@ -4,6 +4,7 @@ const chai = require('chai');
 const chaiHttp = require('chai-http');
 
 const moment = require('moment');
+const sqlite3 = require('sqlite3').verbose();
 const _ = require('lodash');
 
 const should = chai.should();
@@ -11,10 +12,15 @@ const expect = chai.expect;
 
 chai.use(chaiHttp);
 
+const test_server = require(__dirname + '/../../src/server/app');
+
+let dbHandle;
+
 function new_server(next) {
-  return require('../app')({
-    database: './test.db',
-    purge: true
+  dbHandle = new sqlite3.Database(':memory:');
+
+  return test_server({
+    database: dbHandle
   }, next);
 }
 
@@ -48,7 +54,7 @@ describe('click', function() {
   });
 
   afterEach(done => {
-    app.get('db').close(err => {
+    dbHandle.close(err => {
       if (err) throw err;
 
       done();
@@ -75,12 +81,13 @@ describe('click', function() {
         res.should.have.status(200);
         res.text.should.equal("2");
 
-        app.get('db').all('SELECT * FROM click_data WHERE session_id=? ORDER BY time_ms', uuid,
+        dbHandle.all('SELECT * FROM click_data WHERE session_id=? ORDER BY time_ms', uuid,
           (err, rows) => {
             if (err) throw err;
 
             _.zip(rows, data.data).forEach(arr => {
-              let [a, e] = arr;
+              let a = arr[0];
+              let e = arr[1];
 
               expect(a.session_id).to.equal(uuid);
               expect(a.time_ms).to.equal(e.timestamp.valueOf());

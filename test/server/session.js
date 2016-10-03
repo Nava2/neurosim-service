@@ -4,6 +4,7 @@ const chai = require('chai');
 const chaiHttp = require('chai-http');
 
 const moment = require('moment');
+const sqlite3 = require('sqlite3').verbose();
 
 const should = chai.should();
 const expect = chai.expect;
@@ -14,10 +15,15 @@ const UUID_REG = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 let app = null;
 
+let dbHandle;
+
+const test_server = require(__dirname + '/../../src/server/app');
+
 function new_server(next) {
-  return require('../app')({
-    database: './test.db',
-    purge: true
+  dbHandle = new sqlite3.Database(':memory:');
+
+  return test_server({
+    database: dbHandle
   }, next);
 }
 
@@ -46,7 +52,7 @@ describe('session', function() {
 
         let uuid = res.text;
 
-        app.get('db').get("SELECT uuid, start_ms, user_id, model FROM session_data WHERE uuid=?", uuid, (err, row) => {
+        dbHandle.get("SELECT uuid, start_ms, user_id, model FROM session_data WHERE uuid=?", uuid, (err, row) => {
           if (err) throw err;
 
           expect(row.uuid).to.equal(uuid);
@@ -113,7 +119,7 @@ describe('session', function() {
 
             res.text.should.equal(uuid);
 
-            app.get('db').get("SELECT uuid, end_ms FROM session_data WHERE uuid=?", uuid, (err, row) => {
+            dbHandle.get("SELECT uuid, end_ms FROM session_data WHERE uuid=?", uuid, (err, row) => {
               if (err) throw err;
 
               expect(row.uuid).to.equal(uuid);
