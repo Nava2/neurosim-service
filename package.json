@@ -1,9 +1,11 @@
 {
-  "name": "brainsim-server",
+  "name": "neuro-anatomy-sim",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "api": "node ./bin/api",
+    "client": "node ./bin/client",
+    "test": "node ./node_modules/mocha/bin/_mocha --ui bdd --recursive ./test"
   },
   "dependencies": {
     "body-parser": "~1.15.1",
@@ -21,6 +23,7 @@
     "winston": "^2.2.0"
   },
   "devDependencies": {
+    "csv-stringify": "^1.0.4",
     "chai": "^3.5.0",
     "chai-http": "^3.0.0",
     "mocha": "^3.1.0"

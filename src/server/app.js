@@ -10,9 +10,9 @@ const w = require('winston');
 const moment = require('moment');
 const _ = require('lodash');
 
-const dblib = require('../lib/db')(w);
+const dblib = require(__dirname + '/../lib/db')(w);
 
-// Init the express server
+// Init the express api
 
 module.exports = (argv, postInit) => {
 
@@ -22,7 +22,10 @@ module.exports = (argv, postInit) => {
     w.level = argv['log-level'];
   }
 
+  const SESSION_TIMEOUT = (argv.TIMEOUT ? argv.TIMEOUT : 5 * 60);
+
   let app = express();
+  let db = argv.database;
 
   app.use(logger('dev'));
   app.use(bodyParser.json());
@@ -56,7 +59,7 @@ module.exports = (argv, postInit) => {
         model: model
       };
 
-      dblib.session.create(db, meta, (err, uuid) => {
+      db.session.create(meta, (err, uuid) => {
         if (err) {
           return res.status(403).send(err.message);
         }
@@ -71,21 +74,28 @@ module.exports = (argv, postInit) => {
       res.type('text');
 
       const sessionId = req.params.uuid;
-      const end = _.isString(req.body.end) ? moment(req.body.end.trim()).valueOf() : null;
+      let end_time;
+      if (_.isString(req.body.end)) {
+        end_time = moment(req.body.end.trim()).valueOf();
+      } else if (_.isInteger(req.body.end)) {
+        end_time = moment(req.body.end).valueOf();
+      }
 
-      if (!end) {
+      if (!end_time) {
         return res.status(403).send(`No end-time specified.`);
       }
 
-      dblib.session.open_exists(db, sessionId, (err, exists) => {
+      db.session.exists_open(sessionId, (err, exists) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+        } else if (exists === 'closed') {
+          return res.status(403).send(`Session ID (${sessionId}) is already closed.`);
         } else {
-          dblib.session.set_end(db, sessionId, end, err => {
+          db.session.end(sessionId, end_time, err => {
             if (err) {
               return res.status(403).send(err.message);
             }
@@ -104,15 +114,17 @@ module.exports = (argv, postInit) => {
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      dblib.session.open_exists(db, sessionId, (err, exists) => {
+      db.session.exists_open(sessionId, (err, exists) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+        } else if (exists === 'closed') {
+          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
         } else {
-          dblib.spatial.add(db, sessionId, data, err => {
+          db.spatial.add(sessionId, data, err => {
             if (err) {
               return res.status(403).send(err.message);
             }
@@ -130,15 +142,17 @@ module.exports = (argv, postInit) => {
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      dblib.session.open_exists(db, sessionId, (err, exists) => {
+      db.session.exists_open(sessionId, (err, exists) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+        } else if (exists === 'closed') {
+          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
         } else {
-          dblib.click.add(db, sessionId, data, err => {
+          db.click.add(sessionId, data, err => {
             if (err) {
               return res.status(403).send(err.message);
             }
@@ -161,7 +175,7 @@ module.exports = (argv, postInit) => {
     // development error handler
     // will print stacktrace
     if (app.get('env') === 'development') {
-      app.use(function(err, req, res, next) {
+      app.use(function(err, req, res) {
         res.status(err.status || 500);
         res.render('error', {
           message: err.message,
@@ -172,7 +186,7 @@ module.exports = (argv, postInit) => {
 
     // production error handler
     // no stacktraces leaked to user
-    app.use(function(err, req, res, next) {
+    app.use(function(err, req, res) {
       res.status(err.status || 500);
       res.render('error', {
         message: err.message,
@@ -185,19 +199,39 @@ module.exports = (argv, postInit) => {
     }
   }
 
-  dblib.open_db(argv.database, (err, db) => {
-    if (err) throw err;
+  if (_.isString(argv.database)) {
+    db = new dblib({
+      path: argv.database,
+      timeout: argv.timeout
+    });
+  } else {
+    db = new dblib({
+      db_handle: argv.database,
+      timeout: argv.timeout
+    });
+  }
 
+  (function initDatabase() {
+
+    // make sure the app gets initialized properly
     function next(err, db) {
       if (err) {
         return initApp(err);
       }
 
-      return dblib.init_db(db, initApp);
+      return db.init(initApp);
     }
 
-    if (argv.debug) {
-      dblib.delete_db(db, err => {
+    if (argv.purge) {
+      db.purge(err => {
+        if (err && err.code != 'ENOENT') {
+          return next(err, null);
+        }
+
+        return next(null, db);
+      });
+    } else if (argv.debug) {
+      db.purge(err => {
         if (err && err.code != 'ENOENT') {
           return next(err, null);
         }
@@ -207,7 +241,7 @@ module.exports = (argv, postInit) => {
     } else {
       return next(null, db);
     }
-  });
+  })();
 
   return app;
 };
