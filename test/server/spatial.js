@@ -24,7 +24,7 @@ function new_server(next) {
   }, next);
 }
 
-describe('click', function() {
+describe('spatial', function() {
   let app = null;
   let uuid = null;
 
@@ -64,24 +64,48 @@ describe('click', function() {
   const GOOD_DATA = {
     "data": [
       {
-        "timestamp": moment("2016-04-05T12:02:33.022"),
-        "button": "button_id"
-      }, {
-        "timestamp": moment("2016-04-05T12:02:40.022"),
-        "button": "button_id"
+        "start": moment("2016-04-05T12:02:32.022"),
+        "end": moment("2016-04-05T12:02:32.023"),
+        "x": 20.0,
+        "y": 23.4,
+        "zoom": -1.0,
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
+      },
+
+      {
+        "start": moment("2016-04-05T12:02:32.023"),
+        "end": moment("2016-04-05T12:02:35.022"),
+        "x": 20.0,
+        "y": 23.4,
+        "zoom": 32.4,
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
+      },
+      {
+        "start": moment("2016-04-05T12:02:35.022"),
+        "end": moment("2016-04-05T12:04:32.022"),
+        "x": 20.0,
+        "y": 23.4,
+        "zoom": 3.4,
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
       }
     ]
   };
 
-  it('should add click data points to a session on /click/<id> POST', done => {
+  it('should add spatial data points to a session on /spatial/<id> POST', done => {
     chai.request(app)
-      .post('/click/' + uuid)
+      .post(`/spatial/${uuid}`)
       .send(GOOD_DATA)
       .end((err, res) => {
         res.should.have.status(200);
-        res.text.should.equal("2");
+        res.text.should.equal("3");
 
-        dbHandle.all('SELECT * FROM click_data WHERE session_id=? ORDER BY time_ms', uuid,
+        dbHandle.all('SELECT * FROM spatial_data WHERE session_id=? ORDER BY start_ms', uuid,
           (err, rows) => {
             if (err) throw err;
 
@@ -90,7 +114,16 @@ describe('click', function() {
               let e = arr[1];
 
               expect(a.session_id).to.equal(uuid);
-              expect(a.time_ms).to.equal(e.timestamp.valueOf());
+              expect(a.start_ms).to.equal(e.start.valueOf());
+              expect(a.end_ms).to.equal(e.end.valueOf());
+
+              expect(a.x).to.equal(e.x);
+              expect(a.y).to.equal(e.y);
+              expect(a.zoom).to.equal(e.zoom);
+
+              expect(a.alpha).to.equal(e.alpha);
+              expect(a.beta).to.equal(e.beta);
+              expect(a.gamma).to.equal(e.gamma);
               expect(a.button_id).to.equal(e.button);
             });
 
@@ -99,12 +132,12 @@ describe('click', function() {
       });
   });
 
-  it('should fail to add data points to a non-existant session on /click/<id> POST', done => {
+  it('should fail to add data points to a non-existant session on /spatial/<id> POST', done => {
     // uuid that doesn't exist
     const bad_uuid = require('uuid').v1();
 
     chai.request(app)
-      .post('/click/' + bad_uuid)
+      .post('/spatial/' + bad_uuid)
       .send(GOOD_DATA)
       .end((err, res) => {
         res.should.have.status(403);
@@ -114,13 +147,13 @@ describe('click', function() {
       });
   });
 
-  it('should fail to add non-unique data points to a session on /click/<id> POST', done => {
+  it('should fail to add non-unique data points to a session on /spatial/<id> POST', done => {
     // make bad data with a duplicate value
     let bad_data = _.cloneDeep(GOOD_DATA);
     bad_data.data.push(bad_data.data[0]);
 
     chai.request(app)
-      .post('/click/' + uuid)
+      .post(`/spatial/${uuid}`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -132,11 +165,11 @@ describe('click', function() {
   });
 
 
-  it('should fail to add data points to an ended session on /click/<id> POST', done => {
+  it('should fail to add data points to an ended session on /spatial/<id> POST', done => {
 
     // Close the session via /session/end/:uuid
     chai.request(app)
-      .post('/session/end/' + uuid)
+      .post(`/session/end/${uuid}`)
       .send({
         end: moment()
       })
@@ -146,7 +179,7 @@ describe('click', function() {
 
         // now try to add click data
         chai.request(app)
-          .post('/click/' + uuid)
+          .post(`/spatial/${uuid}`)
           .send(GOOD_DATA)
           .end((err, res) => {
             res.should.have.status(403);

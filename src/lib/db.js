@@ -64,13 +64,22 @@ module.exports = (w) => {
      * @param next
      */
     exists_open(uuid, next) {
-      const select_stmt = this._db.prepare("SELECT ROWID FROM session_data WHERE uuid=? AND end_ms IS NULL");
+      const select_stmt = this._db.prepare("SELECT end_ms FROM session_data WHERE uuid=?");
 
       select_stmt.get(uuid, (err, row) => {
         if (err) return next(err);
 
+        let result;
+        if (!row) {
+          result = null;
+        } else if (!row.end_ms) {
+          result = 'open';
+        } else {
+          result = 'closed';
+        }
+
         select_stmt.finalize(err => {
-          return next(err, !!row)
+          return next(err, result)
         });
       });
     }
@@ -90,6 +99,50 @@ module.exports = (w) => {
     }
   }
 
+  /**
+   * Inserts multiple rows using a prepared statement
+   * @param db Database handle
+   * @param stmt Prepared statement
+   * @param rows Rows to insert
+   */
+  function run_multi_stmt(db, stmt, rows, next) {
+    if (rows.length <= 0) {
+      return next(null, rows.length);
+    }
+
+    const finalize = (prev_err) => {
+      stmt.finalize(err => {
+        if (prev_err) return next(prev_err, rows.length);
+        if (err) return next(err, rows.length);
+
+        db.exec("COMMIT TRANSACTION", err => {
+          return next(err, rows.length);
+        });
+      });
+    };
+
+    let run_stmt = (index) => {
+      let r = rows[index];
+      stmt.run(r, err => {
+        if (err) return finalize(err);
+
+        if (index < rows.length - 1) {
+          return run_stmt(index + 1);
+        } else {
+          return finalize();
+        }
+      });
+    };
+
+    db.serialize(() => {
+      db.exec("BEGIN TRANSACTION", err => {
+        if (err) return finalize(err);
+
+        run_stmt(0);
+      });
+    });
+  }
+
   class DbClick {
 
     constructor(handler) {
@@ -97,22 +150,24 @@ module.exports = (w) => {
     }
 
     add(session_id, rows, next) {
-      this._db.serialize(() => {
-        this._db.exec("BEGIN TRANSACTION");
+      // nothing to add, so don't bother with database stuff
+      if (rows.length <= 0) {
+        return next(null, rows.length);
+      }
 
-        const stmt = this._db.prepare("INSERT INTO click_data(session_id, time_ms, button_id) VALUES (?, ?, ?)");
+      const stmt = this._db.prepare("INSERT INTO click_data" +
+        "(session_id, time_ms, button_id) " +
+        "VALUES ($session_id, $timestamp, $button)");
 
-        rows.forEach(r => {
-          r.timestamp = moment(r.timestamp).valueOf(); // fix timestamp
-          stmt.run(session_id, r.timestamp, r.button);
+      const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
+        .map(r => {
+          r["$timestamp"] = moment(r["$timestamp"]).valueOf(); // fix timestamps
+          r["$session_id"] = session_id;
+
+          return r;
         });
 
-        stmt.finalize(err => {
-          if (err) return next(err);
-
-          this._db.exec("COMMIT TRANSACTION", next);
-        });
-      });
+      run_multi_stmt(this._db, stmt, insert_rows, next);
     }
   }
 
@@ -123,29 +178,26 @@ module.exports = (w) => {
     }
 
     add(session_id, rows, next) {
-      this._db.serialize(() => {
-        this._db.exec("BEGIN TRANSACTION");
+      // nothing to add, so don't bother with database stuff
+      if (rows.length <= 0) {
+        return next(null, rows.length);
+      }
 
-        const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, start_ms, end_ms," +
-          " x, y, zoom, alpha, beta, gamma)" +
-          " VALUES ($session_id, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");
+      const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, start_ms, end_ms," +
+        " x, y, zoom, alpha, beta, gamma)" +
+        " VALUES ($session_id, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");
 
-        rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
-          .forEach(r => {
-            r["$start"] = moment(r["$start"]).valueOf(); // fix timestamps
-            r["$end"] = moment(r["$end"]).valueOf();
+      const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
+        .map(r => {
+          r["$start"] = moment(r["$start"]).valueOf(); // fix timestamps
+          r["$end"] = moment(r["$end"]).valueOf();
 
-            r["$session_id"] = session_id;
+          r["$session_id"] = session_id;
 
-            stmt.run(r);
-          });
-
-        stmt.finalize(err => {
-          if (err) return next(err);
-
-          this._db.exec("COMMIT TRANSACTION", next);
+          return r;
         });
-      });
+
+      run_multi_stmt(this._db, stmt, insert_rows, next);
     }
   }
 

@@ -72,7 +72,12 @@ module.exports = (argv, postInit) => {
       res.type('text');
 
       const sessionId = req.params.uuid;
-      const end_time = _.isString(req.body.end) ? moment(req.body.end.trim()).valueOf() : null;
+      let end_time;
+      if (_.isString(req.body.end)) {
+        end_time = moment(req.body.end.trim()).valueOf();
+      } else if (_.isInteger(req.body.end)) {
+        end_time = moment(req.body.end).valueOf();
+      }
 
       if (!end_time) {
         return res.status(403).send(`No end-time specified.`);
@@ -85,6 +90,8 @@ module.exports = (argv, postInit) => {
 
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+        } else if (exists === 'closed') {
+          return res.status(403).send(`Session ID (${sessionId}) is already closed.`);
         } else {
           db.session.end(sessionId, end_time, err => {
             if (err) {
@@ -112,6 +119,8 @@ module.exports = (argv, postInit) => {
 
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+        } else if (exists === 'closed') {
+          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
         } else {
           db.spatial.add(sessionId, data, err => {
             if (err) {
@@ -138,6 +147,8 @@ module.exports = (argv, postInit) => {
 
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+        } else if (exists === 'closed') {
+          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
         } else {
           db.click.add(sessionId, data, err => {
             if (err) {

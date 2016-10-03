@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS session_data (
   , end_ms INTEGER
   , model VARCHAR(10) NOT NULL
   , UNIQUE(user_id, start_ms, model)
+  , CHECK ((end_ms IS NULL) OR (start_ms <= end_ms))
 );
 
 CREATE TABLE IF NOT EXISTS spatial_data (
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS spatial_data (
   , beta DOUBLE NOT NULL
   , gamma DOUBLE DEFAULT 0.0
   , UNIQUE (start_ms, session_id)
+  , CHECK (start_ms <= end_ms)
 );
 
 CREATE TABLE IF NOT EXISTS click_data ( 
