@@ -22,6 +22,8 @@ module.exports = (argv, postInit) => {
     w.level = argv['log-level'];
   }
 
+  const SESSION_TIMEOUT = (argv.TIMEOUT ? argv.TIMEOUT : 5 * 60);
+
   let app = express();
   let db = argv.database;
 
@@ -197,10 +199,21 @@ module.exports = (argv, postInit) => {
     }
   }
 
-  function initDatabase(err, new_db) {
-    if (err) throw err;
-    db = new_db;
+  if (_.isString(argv.database)) {
+    db = new dblib({
+      path: argv.database,
+      timeout: argv.timeout
+    });
+  } else {
+    db = new dblib({
+      db_handle: argv.database,
+      timeout: argv.timeout
+    });
+  }
 
+  (function initDatabase() {
+
+    // make sure the app gets initialized properly
     function next(err, db) {
       if (err) {
         return initApp(err);
@@ -228,13 +241,7 @@ module.exports = (argv, postInit) => {
     } else {
       return next(null, db);
     }
-  }
-
-  if (_.isString(argv.database)) {
-    dblib.from_path(argv.database, initDatabase);
-  } else {
-    initDatabase(null, new dblib(argv.database));
-  }
+  })();
 
   return app;
 };

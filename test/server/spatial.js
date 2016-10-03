@@ -54,7 +54,7 @@ describe('spatial', function() {
   });
 
   afterEach(done => {
-    dbHandle.close(err => {
+    app.get('db').close(err => {
       if (err) throw err;
 
       done();
@@ -114,8 +114,8 @@ describe('spatial', function() {
               let e = arr[1];
 
               expect(a.session_id).to.equal(uuid);
-              expect(a.start_ms).to.equal(e.start.valueOf());
-              expect(a.end_ms).to.equal(e.end.valueOf());
+              expect(a.start_ms).to.equal(e.start.valueOf()/1000.0);
+              expect(a.end_ms).to.equal(e.end.valueOf()/1000.0);
 
               expect(a.x).to.equal(e.x);
               expect(a.y).to.equal(e.y);

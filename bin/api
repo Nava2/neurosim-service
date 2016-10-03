@@ -11,6 +11,7 @@ const argv = require('minimist')(process.argv.slice(2), {
     'debug': false,
     'purge': false,
     'quiet': false,
+    'timeout': 30*60,
     'log-level': 'info'
   }
 });

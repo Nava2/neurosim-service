@@ -9,6 +9,50 @@ const _ = require('lodash');
 
 module.exports = (w) => {
 
+  /**
+   * Inserts multiple rows using a prepared statement
+   * @param db Database handle
+   * @param stmt Prepared statement
+   * @param rows Rows to insert
+   */
+  function run_multi_stmt(db, stmt, rows, next) {
+    if (rows.length <= 0) {
+      return next(null, rows.length);
+    }
+
+    const finalize = (prev_err) => {
+      stmt.finalize(err => {
+        if (prev_err) return next(prev_err, rows.length);
+        if (err) return next(err, rows.length);
+
+        db.exec("COMMIT TRANSACTION", err => {
+          return next(err, rows.length);
+        });
+      });
+    };
+
+    let run_stmt = (index) => {
+      let r = rows[index];
+      stmt.run(r, err => {
+        if (err) return finalize(err);
+
+        if (index < rows.length - 1) {
+          return run_stmt(index + 1);
+        } else {
+          return finalize();
+        }
+      });
+    };
+
+    db.serialize(() => {
+      db.exec("BEGIN TRANSACTION", err => {
+        if (err) return finalize(err);
+
+        run_stmt(0);
+      });
+    });
+  }
+
   class DbSession {
 
     constructor(handler) {
@@ -19,10 +63,11 @@ module.exports = (w) => {
       const insert_stmt = this._db.prepare("INSERT OR ABORT INTO session_data(user_id, start_ms, end_ms, model, uuid) VALUES (?, ?, ?, ?, ?)");
 
       const new_uuid = uuid.v1();
-      insert_stmt.run(meta.userId, meta.start, meta.end, meta.model, new_uuid, err => {
-        if (err) return next(err, null);
-
+      insert_stmt.run(meta.userId, meta.start, meta.end, meta.model, new_uuid, prev_err => {
         insert_stmt.finalize(err => {
+          if (prev_err) return next(prev_err, null);
+          if (err) return next(err, null);
+
           return next(err, new_uuid);
         });
       });
@@ -97,51 +142,15 @@ module.exports = (w) => {
         $session_id: session_id
       }, next);
     }
-  }
 
-  /**
-   * Inserts multiple rows using a prepared statement
-   * @param db Database handle
-   * @param stmt Prepared statement
-   * @param rows Rows to insert
-   */
-  function run_multi_stmt(db, stmt, rows, next) {
-    if (rows.length <= 0) {
-      return next(null, rows.length);
+    end_open(timeout_s, next) {
+      this._db.run("UPDATE session_data SET end_ms=(SELECT ms FROM get_now) " +
+        "WHERE session_data.uuid IN (SELECT session_id FROM last_update_for_uuid WHERE from_now > ?)", timeout_s * 1000.0,
+        next);
     }
-
-    const finalize = (prev_err) => {
-      stmt.finalize(err => {
-        if (prev_err) return next(prev_err, rows.length);
-        if (err) return next(err, rows.length);
-
-        db.exec("COMMIT TRANSACTION", err => {
-          return next(err, rows.length);
-        });
-      });
-    };
-
-    let run_stmt = (index) => {
-      let r = rows[index];
-      stmt.run(r, err => {
-        if (err) return finalize(err);
-
-        if (index < rows.length - 1) {
-          return run_stmt(index + 1);
-        } else {
-          return finalize();
-        }
-      });
-    };
-
-    db.serialize(() => {
-      db.exec("BEGIN TRANSACTION", err => {
-        if (err) return finalize(err);
-
-        run_stmt(0);
-      });
-    });
   }
+
+
 
   class DbClick {
 
@@ -161,7 +170,7 @@ module.exports = (w) => {
 
       const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
         .map(r => {
-          r["$timestamp"] = moment(r["$timestamp"]).valueOf(); // fix timestamps
+          r["$timestamp"] = moment(r["$timestamp"]).valueOf()/1000.0; // fix timestamps
           r["$session_id"] = session_id;
 
           return r;
@@ -189,8 +198,8 @@ module.exports = (w) => {
 
       const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
         .map(r => {
-          r["$start"] = moment(r["$start"]).valueOf(); // fix timestamps
-          r["$end"] = moment(r["$end"]).valueOf();
+          r["$start"] = moment(r["$start"]).valueOf()/1000.0; // fix timestamps
+          r["$end"] = moment(r["$end"]).valueOf()/1000.0;
 
           r["$session_id"] = session_id;
 
@@ -204,37 +213,61 @@ module.exports = (w) => {
   class Db {
 
     // Simple callback for creating a db
-    static from_path(path, next) {
-      w.info(`Opening a new Database connection: ${path}`);
-      if (!path) {
-        next(new Error('Invalid database path specified'));
-      }
+    static from_path(args, next) {
 
-      // Create a new 'db' database.
-      const db = new sqlite3.Database(path, err => {
-        if (err) {
-          return next(err, null);
-        }
-
-        db.on('trace', query => {
-          w.info(`[${path}] Running query: ${query}`);
-        });
-
-        return next(null, new Db(db));
-      });
     }
 
     /**
      * Creates a
-     * @param db_handle
+     * @param args
      * @param next Callback when completed creation
      */
-    constructor(db_handle) {
-      if (!db_handle) {
-        throw new Error('No database specified.');
+    constructor(args) {
+      if (args.db_handle) {
+
+        this._db = args.db_handle;
+      } else if (args.path) {
+        // from a file path
+        w.info(`Opening a new Database connection: ${path}`);
+        if (!path) {
+          next(new Error('Invalid database path specified'));
+        }
+
+        // Create a new 'db' database.
+        // It's okay to just throw the error here since this only happens at init time.
+        this._db = new sqlite3.Database(path, err => {
+          if (err) throw err;
+        });
+
+        this._db.on('trace', query => {
+          w.info(`[${path}] Running query: ${query}`);
+        });
       }
 
-      this._db = db_handle;
+      if (!args.timeout) {
+        args.timeout = 5 * 60;
+      }
+
+      this._TIMEOUT_INTERVAL = args.timeout;
+
+      this._updateInterval = null;
+
+      const update_closed = () => {
+        // Run a database query to try to end all open sessions that are open longer than
+        if (this.isOpen()) {
+          this.session.end_open(this._TIMEOUT_INTERVAL, err => {
+            if (err) {
+              clearTimeout(this._updateInterval);
+
+              throw err;
+            }
+          });
+        } else {
+          clearTimeout(this._updateInterval);
+        }
+      };
+
+      this._updateInterval = setInterval(update_closed, (this._TIMEOUT_INTERVAL / 2.0) * 1000);
     }
 
     get filename() {
@@ -290,6 +323,18 @@ module.exports = (w) => {
       w.info(`[${this.filename}] Purging database tables`);
 
       return this.runScript('purge', next);
+    }
+
+    isOpen() {
+      return !!this._db;
+    }
+
+    close(next) {
+      this._db.close(err => {
+        this._db = null;
+
+        return next(err);
+      });
     }
 
     get session() {

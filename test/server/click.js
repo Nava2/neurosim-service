@@ -54,7 +54,7 @@ describe('click', function() {
   });
 
   afterEach(done => {
-    dbHandle.close(err => {
+    app.get('db').close(err => {
       if (err) throw err;
 
       done();
@@ -90,7 +90,7 @@ describe('click', function() {
               let e = arr[1];
 
               expect(a.session_id).to.equal(uuid);
-              expect(a.time_ms).to.equal(e.timestamp.valueOf());
+              expect(a.time_ms).to.equal(e.timestamp.valueOf()/1000.0);
               expect(a.button_id).to.equal(e.button);
             });
 

@@ -35,6 +35,14 @@ describe('session', function() {
     });
   });
 
+  afterEach(done => {
+    app.get('db').close(err => {
+      if (err) throw err;
+
+      done();
+    });
+  });
+
   it('should create a new session on /session/new POST', done => {
 
     let data = {
