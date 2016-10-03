@@ -228,19 +228,19 @@ module.exports = (w) => {
         this._db = args.db_handle;
       } else if (args.path) {
         // from a file path
-        w.info(`Opening a new Database connection: ${path}`);
-        if (!path) {
+        w.info(`Opening a new Database connection: ${args.path}`);
+        if (!args.path) {
           next(new Error('Invalid database path specified'));
         }
 
         // Create a new 'db' database.
         // It's okay to just throw the error here since this only happens at init time.
-        this._db = new sqlite3.Database(path, err => {
+        this._db = new sqlite3.Database(args.path, err => {
           if (err) throw err;
         });
 
         this._db.on('trace', query => {
-          w.info(`[${path}] Running query: ${query}`);
+          w.info(`[${args.path}] Running query: ${query}`);
         });
       }
 
