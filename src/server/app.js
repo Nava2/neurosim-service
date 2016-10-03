@@ -7,6 +7,13 @@ const logger = require('morgan');
 const bodyParser = require('body-parser');
 
 const w = require('winston');
+
+w.add(w.transports.File, {
+    name: 'debug-file',
+    filename: 'neurosim-debug.log',
+    level: 'debug'
+  });
+
 const moment = require('moment');
 const _ = require('lodash');
 
@@ -21,8 +28,6 @@ module.exports = (argv, postInit) => {
   } else {
     w.level = argv['log-level'];
   }
-
-  const SESSION_TIMEOUT = (argv.TIMEOUT ? argv.TIMEOUT : 5 * 60);
 
   let app = express();
   let db = argv.database;

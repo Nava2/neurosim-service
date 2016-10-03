@@ -249,7 +249,7 @@ module.exports = (w) => {
         });
 
         this._db.on('trace', query => {
-          w.info(`[${args.path}] Running query: ${query}`);
+          w.debug(`[${args.path}] Running query: ${query}`);
         });
       }
 
