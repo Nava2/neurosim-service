@@ -16,10 +16,12 @@ const argv = require('minimist')(process.argv.slice(2), {
   }
 });
 
-if (argv.debug && !argv.database) {
-  argv.database = __dirname + '/student-data.debug.db';
-} else {
-  argv.database = __dirname + '/student-data.db';
+if (!argv.database) {
+  if (!argv.debug) {
+    argv.database = __dirname + '/student-data.debug.db';
+  } else {
+    argv.database = __dirname + '/student-data.db';
+  }
 }
 
 var app = require('../src/server/app')(argv);
