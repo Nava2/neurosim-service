@@ -54,7 +54,7 @@ module.exports = (argv, postInit) => {
       req.accepts('application/json');
       res.type('text');
 
-      const userId = req.body.userId;
+      const userId = req.body.userId.toLowerCase().trim();
       const startTime = moment(req.body.start.trim()).valueOf();
       const model = req.body.model.toLowerCase().trim();
 
@@ -98,7 +98,7 @@ module.exports = (argv, postInit) => {
         if (!exists) {
           return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
         } else if (exists === 'closed') {
-          return res.status(403).send(`Session ID (${sessionId}) is already closed.`);
+          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
         } else {
           db.session.end(sessionId, end_time, err => {
             if (err) {
