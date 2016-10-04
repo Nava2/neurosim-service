@@ -73,6 +73,25 @@ describe('click', function() {
     ]
   };
 
+  function verify_good_data(done) {
+    dbHandle.all('SELECT * FROM click_data WHERE session_id=? ORDER BY time_ms', uuid,
+      (err, rows) => {
+        if (err) throw err;
+
+        _.zip(rows, GOOD_DATA.data).forEach(arr => {
+          let a = arr[0];
+          let e = arr[1];
+
+          expect(a.session_id).to.equal(uuid);
+          expect(a.time_ms).to.equal(e.timestamp.valueOf()/1000.0);
+          expect(a.button_id).to.equal(e.button);
+        });
+
+        done();
+      });
+
+  }
+
   it('should add click data points to a session on /click/<id> POST', done => {
     chai.request(app)
       .post('/click/' + uuid)
@@ -81,21 +100,7 @@ describe('click', function() {
         res.should.have.status(200);
         res.text.should.equal("2");
 
-        dbHandle.all('SELECT * FROM click_data WHERE session_id=? ORDER BY time_ms', uuid,
-          (err, rows) => {
-            if (err) throw err;
-
-            _.zip(rows, GOOD_DATA.data).forEach(arr => {
-              let a = arr[0];
-              let e = arr[1];
-
-              expect(a.session_id).to.equal(uuid);
-              expect(a.time_ms).to.equal(e.timestamp.valueOf()/1000.0);
-              expect(a.button_id).to.equal(e.button);
-            });
-
-            done();
-          });
+        verify_good_data(done);
       });
   });
 
@@ -156,5 +161,49 @@ describe('click', function() {
             done();
           });
       });
+  });
+
+  it('should fail to add malformed data to a session on /click/<id> POST', done => {
+
+    let bad_data = _.cloneDeep(GOOD_DATA);
+    delete bad_data.data[0]['timestamp'];
+
+    chai.request(app)
+      .post(`/click/${uuid}`)
+      .send(bad_data)
+      .end((err, res) => {
+        res.should.have.status(403);
+
+        res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
+
+        done();
+      });
+
+  });
+
+  it('After an error, correct requests should pass /click/<id> POST', done => {
+
+    let bad_data = _.cloneDeep(GOOD_DATA);
+    delete bad_data.data[0]['timestamp'];
+
+    chai.request(app)
+      .post(`/click/${uuid}`)
+      .send(bad_data)
+      .end((err, res) => {
+        res.should.have.status(403);
+
+        res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
+
+        chai.request(app)
+          .post(`/click/${uuid}`)
+          .send(GOOD_DATA)
+          .end((err, res) => {
+            res.should.have.status(200);
+            res.text.should.equal("2");
+
+            verify_good_data(done);
+          });
+      });
+
   });
 });
