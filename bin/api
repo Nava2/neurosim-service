@@ -17,7 +17,7 @@ const argv = require('minimist')(process.argv.slice(2), {
 });
 
 if (!argv.database) {
-  if (!argv.debug) {
+  if (argv.debug) {
     argv.database = __dirname + '/student-data.debug.db';
   } else {
     argv.database = __dirname + '/student-data.db';

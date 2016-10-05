@@ -23,12 +23,6 @@ const dblib = require(__dirname + '/../lib/db')(w);
 
 module.exports = (argv, postInit) => {
 
-  if (argv.quiet) {
-    w.level = 'warn';
-  } else {
-    w.level = argv['log-level'];
-  }
-
   let app = express();
   let db = argv.database;
 
