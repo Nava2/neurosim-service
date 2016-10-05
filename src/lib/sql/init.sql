@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS spatial_data (
   , alpha DOUBLE NOT NULL
   , beta DOUBLE NOT NULL
   , gamma DOUBLE DEFAULT 0.0
+  , UNIQUE (session_id, start_ms, end_ms)
   , CHECK (start_ms <= end_ms)
 );
 
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS click_data (
     session_id VARCHAR(36) REFERENCES session_data(uuid)
   , time_ms DOUBLE NOT NULL
   , button_id VARCHAR(32) NOT NULL
+  , UNIQUE(session_id, time_ms)
 );
 
 -- Meta table used for calculations
