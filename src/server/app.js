@@ -113,16 +113,16 @@ module.exports = (argv, postInit) => {
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      db.session.exists_open(sessionId, (err, exists) => {
-        if (err) {
-          return res.status(403).send(err.message);
-        }
-
-        if (!exists) {
-          return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
-        } else if (exists === 'closed') {
-          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
-        } else {
+      // db.session.exists_open(sessionId, (err, exists) => {
+      //   if (err) {
+      //     return res.status(403).send(err.message);
+      //   }
+      //
+      //   if (!exists) {
+      //     return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+      //   } else if (exists === 'closed') {
+      //     return res.status(403).send(`Session ID (${sessionId}) is closed.`);
+      //   } else {
           db.spatial.add(sessionId, data, err => {
             if (err) {
               return res.status(403).send(err.message);
@@ -130,8 +130,8 @@ module.exports = (argv, postInit) => {
 
             return res.send(`${data.length}`);
           });
-        }
-      });
+        // }
+      // });
     });
 
     app.post('/click/:uuid', (req, res) => {
@@ -141,16 +141,16 @@ module.exports = (argv, postInit) => {
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      db.session.exists_open(sessionId, (err, exists) => {
-        if (err) {
-          return res.status(403).send(err.message);
-        }
-
-        if (!exists) {
-          return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
-        } else if (exists === 'closed') {
-          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
-        } else {
+      // db.session.exists_open(sessionId, (err, exists) => {
+      //   if (err) {
+      //     return res.status(403).send(err.message);
+      //   }
+      //
+      //   if (!exists) {
+      //     return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
+      //   } else if (exists === 'closed') {
+      //     return res.status(403).send(`Session ID (${sessionId}) is closed.`);
+      //   } else {
           db.click.add(sessionId, data, err => {
             if (err) {
               return res.status(403).send(err.message);
@@ -158,8 +158,8 @@ module.exports = (argv, postInit) => {
 
             return res.send(`${data.length}`);
           });
-        }
-      });
+      //   }
+      // });
     });
 
     // catch 404 and forward to error handler
