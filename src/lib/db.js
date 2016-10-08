@@ -14,6 +14,7 @@ module.exports = (w) => {
    * @param db Database handle
    * @param stmt Prepared statement
    * @param rows Rows to insert
+   * @param next
    */
   function run_multi_stmt(db, stmt, rows, next) {
     if (rows.length <= 0) {
@@ -89,52 +90,41 @@ module.exports = (w) => {
      * @param next Callback
      */
     get_uuid(meta, next) {
-      const select_stmt = this._db.prepare("SELECT uuid FROM session_data WHERE user_id=? AND start_ms=? AND model=?");
+      this._db.get("SELECT uuid FROM session_data WHERE user_id=? AND start_ms=? AND model=?",
+                   meta.userId, meta.start, meta.model,
+        (err, row) => {
+          if (err) {
+            return next(err, null);
+          }
 
-      function real_next(err, uuid) {
-        if (err) return next(err, null);
+          if (!row) {
+            return next(new Error(`Unknown uuid for: user_id=${meta.userId}, start=${meta.start}, model=${meta.model}`), null);
+          }
 
-        select_stmt.finalize(err => {
-          return next(err, uuid);
+          return next(null, row.uuid);
         });
-      }
-
-      select_stmt.get(meta.userId, meta.start, meta.model, (err, row) => {
-        if (err) {
-          return real_next(err, null);
-        }
-
-        if (!row) {
-          return real_next(new Error(`Unknown uuid for: user_id=${meta.userId}, start=${meta.start}, model=${meta.model}`), null);
-        }
-
-        return real_next(null, row.uuid);
-      });
     }
 
     /**
      * Checks if a uuid for a session is open
      * @param uuid
+     * @param against {moment|Number} The time to check against (moment)
      * @param next
      */
-    exists_open(uuid, next) {
-      const select_stmt = this._db.prepare("SELECT end_ms FROM session_data WHERE uuid=?");
+    check_end(uuid, against, next) {
+      const checkAgainst = moment.isMoment(against) ? against.valueOf() : against;
 
-      select_stmt.get(uuid, (err, row) => {
+      this._db.get("SELECT end_ms FROM session_data WHERE uuid=?", uuid, (err, row) => {
         if (err) return next(err);
-
-        let result;
         if (!row) {
-          result = null;
-        } else if (!row.end_ms) {
-          result = 'open';
-        } else {
-          result = 'closed';
+          return next(new Error(`Session ID (${uuid}) does not exist.`));
         }
 
-        select_stmt.finalize(err => {
-          return next(err, result)
-        });
+        if (!row["end_ms"] || moment(row.end_ms).valueOf() >= checkAgainst) {
+          return next(null);
+        } else {
+          return next(new Error(`Tried to insert data that is older than session (ID: ${uuid})`))
+        }
       });
     }
 
@@ -154,7 +144,8 @@ module.exports = (w) => {
 
     end_open(timeout_s, next) {
       this._db.run("UPDATE session_data SET end_ms=(SELECT ms FROM get_now) " +
-        "WHERE session_data.uuid IN (SELECT session_id FROM last_update_for_uuid WHERE from_now > ?)", timeout_s * 1000.0,
+        "WHERE session_data.uuid IN (SELECT session_id FROM last_update_for_uuid WHERE from_now > ?)",
+        timeout_s * 1000.0,
         next);
     }
   }
@@ -164,6 +155,7 @@ module.exports = (w) => {
   class DbClick {
 
     constructor(handler) {
+      this._parent = handler;
       this._db = handler._db;
     }
 
@@ -177,6 +169,8 @@ module.exports = (w) => {
         "(session_id, time_ms, button_id) " +
         "VALUES ($session_id, $timestamp, $button)");
 
+      const max_time = _.reduce(rows.map(r => Math.max(r.end, r.start)), 1, (v, n) => (Math.max(v, n)));
+
       const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
         .map(r => {
           r["$timestamp"] = r["$timestamp"] ? moment(r["$timestamp"]).valueOf()/1000.0 : null; // fix timestamps
@@ -185,7 +179,13 @@ module.exports = (w) => {
           return r;
         });
 
-      run_multi_stmt(this._db, stmt, insert_rows, next);
+      this._parent.session.check_end(session_id, max_time, err => {
+        if (err) {
+          return next(err);
+        }
+
+        run_multi_stmt(this._db, stmt, insert_rows, next);
+      });
     }
   }
 
@@ -220,11 +220,6 @@ module.exports = (w) => {
   }
 
   class Db {
-
-    // Simple callback for creating a db
-    static from_path(args, next) {
-
-    }
 
     /**
      * Creates a

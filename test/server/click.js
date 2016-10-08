@@ -25,6 +25,9 @@ function new_server(next) {
 }
 
 describe('click', function() {
+
+  const UUID_REG = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+
   let app = null;
   let uuid = null;
 
@@ -42,8 +45,6 @@ describe('click', function() {
         .send(data)
         .end((err, res) => {
           res.should.have.status(200);
-
-          const UUID_REG = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
           res.text.should.match(UUID_REG);
 
           uuid = res.text;
@@ -89,7 +90,6 @@ describe('click', function() {
 
         done();
       });
-
   }
 
   it('should add click data points to a session on /click/<id> POST', done => {
@@ -101,6 +101,28 @@ describe('click', function() {
         res.text.should.equal("2");
 
         verify_good_data(done);
+      });
+  });
+
+  it('should add click data points to a session on /click/<id> POST after end is passed', done => {
+    let end_time = moment("2016-04-06T12:02:32.022");
+
+    chai.request(app)
+      .post('/session/end/' + uuid)
+      .send({ end: end_time })
+      .end((err, res) => {
+        res.should.have.status(200);
+        res.text.should.equal(uuid);
+
+        chai.request(app)
+          .post('/click/' + uuid)
+          .send(GOOD_DATA)
+          .end((err, res) => {
+            res.should.have.status(200);
+            res.text.should.equal("2");
+
+            verify_good_data(done);
+          });
       });
   });
 
