@@ -69,39 +69,33 @@ module.exports = (argv, postInit) => {
     });
 
     app.post('/session/end/:uuid', (req, res) => {
-      req.accepts('application/json');
+      req.accepts('json');
       res.type('text');
 
       const sessionId = req.params.uuid;
       let end_time;
       if (_.isString(req.body.end)) {
-        end_time = moment(req.body.end.trim()).valueOf();
+        end_time = moment(req.body.end.trim());
       } else if (_.isInteger(req.body.end)) {
-        end_time = moment(req.body.end).valueOf();
+        end_time = moment(req.body.end);
       }
 
       if (!end_time) {
         return res.status(403).send(`No end-time specified.`);
       }
 
-      db.session.exists_open(sessionId, (err, exists) => {
+      db.session.check_end(sessionId, end_time, err => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        if (!exists) {
-          return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
-        } else if (exists === 'closed') {
-          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
-        } else {
-          db.session.end(sessionId, end_time, err => {
-            if (err) {
-              return res.status(403).send(err.message);
-            }
+        db.session.end(sessionId, end_time, err => {
+          if (err) {
+            return res.status(403).send(err.message);
+          }
 
-            return res.send(sessionId);
-          });
-        }
+          return res.send(sessionId);
+        });
       });
     });
 
@@ -113,24 +107,12 @@ module.exports = (argv, postInit) => {
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      db.session.exists_open(sessionId, (err, exists) => {
+      db.spatial.add(sessionId, data, err => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        if (!exists) {
-          return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
-        } else if (exists === 'closed') {
-          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
-        } else {
-          db.spatial.add(sessionId, data, err => {
-            if (err) {
-              return res.status(403).send(err.message);
-            }
-
-            return res.send(`${data.length}`);
-          });
-        }
+        return res.send(`${data.length}`);
       });
     });
 
@@ -141,24 +123,12 @@ module.exports = (argv, postInit) => {
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      db.session.exists_open(sessionId, (err, exists) => {
+      db.click.add(sessionId, data, err => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        if (!exists) {
-          return res.status(403).send(`Session ID (${sessionId}) does not exist.`);
-        } else if (exists === 'closed') {
-          return res.status(403).send(`Session ID (${sessionId}) is closed.`);
-        } else {
-          db.click.add(sessionId, data, err => {
-            if (err) {
-              return res.status(403).send(err.message);
-            }
-
-            return res.send(`${data.length}`);
-          });
-        }
+        return res.send(`${data.length}`);
       });
     });
 
