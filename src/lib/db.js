@@ -123,7 +123,7 @@ module.exports = (w) => {
         if (!row["end_ms"] || moment(row.end_ms).valueOf() >= checkAgainst) {
           return next(null);
         } else {
-          return next(new Error(`Tried to insert data that is older than session (ID: ${uuid})`))
+          return next(new Error(`Tried to insert data that is older than session (ID: ${uuid}).`))
         }
       });
     }
@@ -131,13 +131,13 @@ module.exports = (w) => {
     /**
      * Ends a session
      *
-     * @param session_id
-     * @param end_time
-     * @param next
+     * @param session_id {String}
+     * @param end_time {moment|Number}
+     * @param next {Function}
      */
     end(session_id, end_time, next) {
       this._db.run("UPDATE session_data SET end_ms=$end WHERE uuid=$session_id", {
-        $end: end_time,
+        $end: moment.isMoment(end_time) ? end_time.valueOf() : end_time,
         $session_id: session_id
       }, next);
     }
@@ -165,15 +165,12 @@ module.exports = (w) => {
         return next(null, rows.length);
       }
 
-      const stmt = this._db.prepare("INSERT INTO click_data" +
-        "(session_id, time_ms, button_id) " +
-        "VALUES ($session_id, $timestamp, $button)");
-
-      const max_time = _.reduce(rows.map(r => Math.max(r.end, r.start)), 1, (v, n) => (Math.max(v, n)));
+      const max_time = _.reduce(rows.map(r => (moment(r.timestamp).valueOf())),
+        (v, n) => (Math.max(v, n)), 0);
 
       const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
         .map(r => {
-          r["$timestamp"] = r["$timestamp"] ? moment(r["$timestamp"]).valueOf()/1000.0 : null; // fix timestamps
+          r["$timestamp"] = r["$timestamp"] ? moment(r["$timestamp"]).valueOf() : null; // fix timestamps
           r["$session_id"] = session_id;
 
           return r;
@@ -184,6 +181,9 @@ module.exports = (w) => {
           return next(err);
         }
 
+        const stmt = this._db.prepare("INSERT INTO click_data" +
+          "(session_id, time_ms, button_id) " +
+          "VALUES ($session_id, $timestamp, $button)");
         run_multi_stmt(this._db, stmt, insert_rows, next);
       });
     }
@@ -193,6 +193,7 @@ module.exports = (w) => {
 
     constructor(handler) {
       this._db = handler._db;
+      this._parent = handler;
     }
 
     add(session_id, rows, next) {
@@ -201,21 +202,29 @@ module.exports = (w) => {
         return next(null, rows.length);
       }
 
-      const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, start_ms, end_ms," +
-        " x, y, zoom, alpha, beta, gamma)" +
-        " VALUES ($session_id, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");
+      const max_time = _.reduce(rows.map(r => Math.max(moment(r.start).valueOf(), moment(r.end).valueOf())),
+        (v, n) => (Math.max(v, n)), 0);
 
       const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
         .map(r => {
-          r["$start"] = moment(r["$start"]).valueOf()/1000.0; // fix timestamps
-          r["$end"] = moment(r["$end"]).valueOf()/1000.0;
+          r["$start"] = moment(r["$start"]).valueOf(); // fix timestamps
+          r["$end"] = moment(r["$end"]).valueOf();
 
           r["$session_id"] = session_id;
 
           return r;
         });
 
-      run_multi_stmt(this._db, stmt, insert_rows, next);
+      this._parent.session.check_end(session_id, max_time, err => {
+        if (err) {
+          return next(err);
+        }
+
+        const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, start_ms, end_ms," +
+          " x, y, zoom, alpha, beta, gamma)" +
+          " VALUES ($session_id, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");
+        run_multi_stmt(this._db, stmt, insert_rows, next);
+      });
     }
   }
 
@@ -272,6 +281,10 @@ module.exports = (w) => {
       };
 
       this._updateInterval = setInterval(update_closed, (this._TIMEOUT_INTERVAL / 2.0) * 1000);
+
+      this._session = new DbSession(this);
+      this._click = new DbClick(this);
+      this._spatial = new DbSpatial(this);
     }
 
     get filename() {
@@ -342,15 +355,15 @@ module.exports = (w) => {
     }
 
     get session() {
-      return new DbSession(this);
+      return this._session;
     }
 
     get click() {
-      return new DbClick(this);
+      return this._click;
     }
 
     get spatial() {
-      return new DbSpatial(this);
+      return this._spatial;
     }
   }
 

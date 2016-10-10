@@ -31,18 +31,20 @@ describe('click', function() {
   let app = null;
   let uuid = null;
 
-  beforeEach(done => {
-    let data = {
-      "start": moment("2016-04-05T12:02:32.022"),
-      "userId": "demo",
-      "model": "demo_model"
-    };
+  const START_TIME = moment("2016-04-05T12:02:32.022");
 
+  let sessionData = {
+    "start": START_TIME,
+    "userId": "demo",
+    "model": "demo_model"
+  };
+
+  beforeEach(done => {
     new_server(newApp => {
       app = newApp;
       chai.request(app)
         .post('/session/new')
-        .send(data)
+        .send(sessionData)
         .end((err, res) => {
           res.should.have.status(200);
           res.text.should.match(UUID_REG);
@@ -65,10 +67,10 @@ describe('click', function() {
   const GOOD_DATA = {
     "data": [
       {
-        "timestamp": moment("2016-04-05T12:02:33.022"),
+        "timestamp": START_TIME.clone().add(2, 'm'),
         "button": "button_id"
       }, {
-        "timestamp": moment("2016-04-05T12:02:40.022"),
+        "timestamp": START_TIME.clone().add(4, 'm'),
         "button": "button_id"
       }
     ]
@@ -84,7 +86,7 @@ describe('click', function() {
           let e = arr[1];
 
           expect(a.session_id).to.equal(uuid);
-          expect(a.time_ms).to.equal(e.timestamp.valueOf()/1000.0);
+          expect(a.time_ms).to.equal(e.timestamp.valueOf());
           expect(a.button_id).to.equal(e.button);
         });
 
@@ -105,7 +107,7 @@ describe('click', function() {
   });
 
   it('should add click data points to a session on /click/<id> POST after end is passed', done => {
-    let end_time = moment("2016-04-06T12:02:32.022");
+    let end_time = moment(sessionData.start).add(5, 'day');
 
     chai.request(app)
       .post('/session/end/' + uuid)
@@ -160,12 +162,13 @@ describe('click', function() {
 
 
   it('should fail to add data points to an ended session on /click/<id> POST', done => {
-
     // Close the session via /session/end/:uuid
+    const end_time = START_TIME.clone().add(1, 's');
+
     chai.request(app)
       .post('/session/end/' + uuid)
       .send({
-        end: moment()
+        end: end_time
       })
       .end((err, res) => {
         res.should.have.status(200);
@@ -177,8 +180,7 @@ describe('click', function() {
           .send(GOOD_DATA)
           .end((err, res) => {
             res.should.have.status(403);
-
-            res.text.should.equal(`Session ID (${uuid}) is closed.`);
+            res.text.should.equal(`Tried to insert data that is older than session (ID: ${uuid}).`);
 
             done();
           });

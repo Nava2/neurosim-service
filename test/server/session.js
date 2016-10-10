@@ -121,8 +121,6 @@ describe('session', function() {
             end: end_time
           })
           .end((err, res) => {
-            if (err) throw err;
-
             res.should.have.status(200);
 
             res.text.should.equal(uuid);

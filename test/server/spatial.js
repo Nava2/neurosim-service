@@ -29,9 +29,10 @@ describe('spatial', () => {
   let app = null;
   let uuid = null;
 
+  const START_TIME = moment("2016-04-05T12:02:32.022");
   beforeEach(done => {
     let data = {
-      "start": moment("2016-04-05T12:02:32.022"),
+      "start": START_TIME,
       "userId": "demo",
       "model": "demo_model"
     };
@@ -65,8 +66,8 @@ describe('spatial', () => {
   const GOOD_DATA = {
     "data": [
       {
-        "start": moment("2016-04-05T12:02:32.022"),
-        "end": moment("2016-04-05T12:02:32.023"),
+        "start": START_TIME.clone().add(1, 'm'),
+        "end": START_TIME.clone().add(1, 'm').add(23, 's'),
         "x": 20.0,
         "y": 23.4,
         "zoom": -1.0,
@@ -76,8 +77,8 @@ describe('spatial', () => {
       },
 
       {
-        "start": moment("2016-04-05T12:02:32.023"),
-        "end": moment("2016-04-05T12:02:35.022"),
+        "start": START_TIME.clone().add(3, 'm'),
+        "end": START_TIME.clone().add(3, 'm').add(23, 's'),
         "x": 20.0,
         "y": 23.4,
         "zoom": 32.4,
@@ -86,8 +87,8 @@ describe('spatial', () => {
         "gamma": 234.0
       },
       {
-        "start": moment("2016-04-05T12:02:35.022"),
-        "end": moment("2016-04-05T12:04:32.022"),
+        "start": START_TIME.clone().add(3, 'm').add(23, 's'),
+        "end": START_TIME.clone().add(5, 'm'),
         "x": 20.0,
         "y": 23.4,
         "zoom": 3.4,
@@ -108,8 +109,8 @@ describe('spatial', () => {
           let e = arr[1];
 
           expect(a.session_id).to.equal(uuid);
-          expect(a.start_ms).to.equal(e.start.valueOf()/1000.0);
-          expect(a.end_ms).to.equal(e.end.valueOf()/1000.0);
+          expect(a.start_ms).to.equal(e.start.valueOf());
+          expect(a.end_ms).to.equal(e.end.valueOf());
 
           expect(a.x).to.equal(e.x);
           expect(a.y).to.equal(e.y);
@@ -177,7 +178,7 @@ describe('spatial', () => {
     chai.request(app)
       .post(`/session/end/${uuid}`)
       .send({
-        end: moment()
+        end: START_TIME.clone().add(10, 's')
       })
       .end((err, res) => {
         res.should.have.status(200);
@@ -190,7 +191,33 @@ describe('spatial', () => {
           .end((err, res) => {
             res.should.have.status(403);
 
-            res.text.should.equal(`Session ID (${uuid}) is closed.`);
+            res.text.should.equal(`Tried to insert data that is older than session (ID: ${uuid}).`);
+
+            done();
+          });
+      });
+  });
+
+  it('should add data points to an ended session on /spatial/<id> POST if they are before end', done => {
+
+    // Close the session via /session/end/:uuid
+    chai.request(app)
+      .post(`/session/end/${uuid}`)
+      .send({
+        end: START_TIME.clone().add(1, 'h')
+      })
+      .end((err, res) => {
+        res.should.have.status(200);
+        res.text.should.equal(uuid);
+
+        // now try to add click data
+        chai.request(app)
+          .post(`/spatial/${uuid}`)
+          .send(GOOD_DATA)
+          .end((err, res) => {
+            res.should.have.status(200);
+
+            res.text.should.equal(`${GOOD_DATA.data.length}`);
 
             done();
           });
