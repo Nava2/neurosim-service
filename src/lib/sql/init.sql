@@ -22,6 +22,19 @@ CREATE TABLE IF NOT EXISTS spatial_data (
   , CHECK (start_ms <= end_ms)
 );
 
+CREATE TABLE IF NOT EXISTS tooltip_data (
+    session_id VARCHAR(36) REFERENCES session_data(uuid)
+  , object_id VARCHAR(64) NOT NULL
+  , start_ms DOUBLE NOT NULL
+  , end_ms DOUBLE NOT NULL
+  , start_x DOUBLE NOT NULL
+  , start_y DOUBLE NOT NULL
+  , end_x DOUBLE NOT NULL
+  , end_y DOUBLE NOT NULL
+  , UNIQUE (session_id, object_id, start_ms, end_ms)
+  , CHECK (start_ms <= end_ms)
+);
+
 CREATE TABLE IF NOT EXISTS click_data ( 
     session_id VARCHAR(36) REFERENCES session_data(uuid)
   , time_ms DOUBLE NOT NULL
@@ -42,10 +55,12 @@ CREATE VIEW IF NOT EXISTS last_update_for_uuid AS
           uuid AS session_id
         , MAX(s.start_ms
           , IFNULL(click_data.time_ms, -1)
-          , IFNULL(spatial_data.end_ms, -1)) AS max_ms
+          , IFNULL(spatial_data.end_ms, -1)
+          , IFNULL(tooltip_data.end_ms, -1)) AS max_ms
       FROM session_data s
       LEFT OUTER JOIN click_data ON s.uuid=click_data.session_id
       LEFT OUTER JOIN spatial_data ON s.uuid=spatial_data.session_id
+      LEFT OUTER JOIN tooltip_data ON s.uuid=tooltip_data.session_id
       WHERE s.end_ms IS NULL)
     SELECT
         session_id
@@ -53,7 +68,7 @@ CREATE VIEW IF NOT EXISTS last_update_for_uuid AS
       , (get_now.ms - m.max_ms) AS from_now
     FROM m, get_now;
 
--- View for spatial for Lauren :)
+-- View for spatial for Lauren
 CREATE VIEW IF NOT EXISTS spatial_view AS
   SELECT
       session_id

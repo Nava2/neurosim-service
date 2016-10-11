@@ -127,6 +127,24 @@ module.exports = (argv, postInit) => {
       });
     });
 
+    app.options('/tooltip/:uuid');
+    app.post('/tooltip/:uuid', (req, res) => {
+      req.accepts('application/json');
+      res.type('text');
+
+      const sessionId = req.params.uuid;
+      const data = req.body.data;
+
+      db.tooltip.add(sessionId, data, err => {
+        if (err) {
+          return res.status(403).send(err.message);
+        }
+
+        return res.send(`${data.length}`);
+      });
+    });
+
+
     app.options('/click/:uuid');
     app.post('/click/:uuid', (req, res) => {
       req.accepts('application/json');
