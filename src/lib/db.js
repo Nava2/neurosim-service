@@ -228,6 +228,47 @@ module.exports = (w) => {
     }
   }
 
+  class DbTooltip {
+
+    constructor(handler) {
+      this._db = handler._db;
+      this._parent = handler;
+    }
+
+    add(session_id, rows, next) {
+      // nothing to add, so don't bother with database stuff
+      if (rows.length <= 0) {
+        return next(null, rows.length);
+      }
+
+      const max_time = _.reduce(rows.map(r => Math.max(moment(r.start).valueOf(), moment(r.end).valueOf())),
+        (v, n) => (Math.max(v, n)), 0);
+
+      const insert_rows = rows.map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
+        .map(r => {
+          r["$start"] = moment(r["$start"]).valueOf(); // fix timestamps
+          r["$end"] = moment(r["$end"]).valueOf();
+
+          r["$session_id"] = session_id;
+
+          return r;
+        });
+
+      this._parent.session.check_end(session_id, max_time, err => {
+        if (err) {
+          return next(err);
+        }
+
+        const stmt = this._db.prepare("INSERT INTO tooltip_data(session_id, object_id, " +
+          " start_ms, end_ms," +
+          " start_x, start_y, " +
+          " end_x, end_y)" +
+          " VALUES ($session_id, $object, $start, $end, $start_x, $start_y, $end_x, $end_y)");
+        run_multi_stmt(this._db, stmt, insert_rows, next);
+      });
+    }
+  }
+
   class Db {
 
     /**
@@ -285,6 +326,7 @@ module.exports = (w) => {
       this._session = new DbSession(this);
       this._click = new DbClick(this);
       this._spatial = new DbSpatial(this);
+      this._tooltip = new DbTooltip(this);
     }
 
     get filename() {
@@ -364,6 +406,10 @@ module.exports = (w) => {
 
     get spatial() {
       return this._spatial;
+    }
+
+    get tooltip() {
+      return this._tooltip;
     }
   }
 
