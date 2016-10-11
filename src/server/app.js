@@ -6,6 +6,8 @@ const favicon = require('serve-favicon');
 const logger = require('morgan');
 const bodyParser = require('body-parser');
 
+const cors = require('cors');
+
 const w = require('winston');
 
 w.add(w.transports.File, {
@@ -31,6 +33,12 @@ module.exports = (argv, postInit) => {
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(express.static(path.join(__dirname, 'public')));
 
+  app.use(cors({
+    allowedOrigins: ['*'],
+    methods: ['POST', 'OPTIONS'],
+    headers: ['Content-Type', 'Content-Length']
+  }));
+
   app.set('view engine', 'pug');
 
   function initApp(err, db) {
@@ -44,6 +52,7 @@ module.exports = (argv, postInit) => {
 
     app.set('db', db);
 
+    app.options('/session/new');
     app.post('/session/new', (req, res) => {
       req.accepts('application/json');
       res.type('text');
@@ -68,6 +77,7 @@ module.exports = (argv, postInit) => {
       });
     });
 
+    app.options('/session/end/:uuid');
     app.post('/session/end/:uuid', (req, res) => {
       req.accepts('json');
       res.type('text');
@@ -100,6 +110,7 @@ module.exports = (argv, postInit) => {
     });
 
 
+    app.options('/spatial/:uuid');
     app.post('/spatial/:uuid', (req, res) => {
       req.accepts('application/json');
       res.type('text');
@@ -116,6 +127,7 @@ module.exports = (argv, postInit) => {
       });
     });
 
+    app.options('/click/:uuid');
     app.post('/click/:uuid', (req, res) => {
       req.accepts('application/json');
       res.type('text');
