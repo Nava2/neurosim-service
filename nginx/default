@@ -1,9 +1,3 @@
-# You may add here your
-# server {
-#	...
-# }
-# statements for each of your virtual hosts to this file
-
 ##
 # You should look at the following URL's in order to grasp a solid understanding
 # of Nginx configuration files in order to fully unleash the power of Nginx.
@@ -25,12 +19,12 @@ server {
 	return 301 https://$server_name$request_uri;
 }
 
-upstream neuroAPI {
-    server localhost:4000;
+upstream api {
+	server localhost:4000;
 }
 
-upstream neuroWWW {
-    server localhost:4001;
+upstream client {
+	server localhost:4001;
 }
 
 server {
@@ -43,40 +37,39 @@ server {
 
 	# Make site accessible from http://localhost/
 	server_name localhost;
-
-    location /api/ {
-		try_files $uri $uri/ @neuroAPI;
-	}
-
-	location @neuroAPI {
-        proxy_redirect off;
-
-        proxy_http_version 1.1;
-        proxy_pass https://neuroAPI;
-        proxy_set_header Host $host ;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
+#	server_name brainsim.navatwo.net;
 
 	root /home/ubuntu/neurosim-www;
 
-    location /static/ {
-        try_files $uri $uri/ @neuroWWW;
-    }
+        location /api/ {
+		proxy_pass http://api;
+		proxy_redirect off;
 
-    location @neuroWWW {
-        proxy_redirect off;
+		proxy_set_header X-Real-IP $remote_addr;
+	      	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	      	proxy_set_header Host $http_host;
+	      	proxy_set_header X-NginX-Proxy true;
+	}
 
-        proxy_http_version 1.1;
-        proxy_pass https://neuroWWW;
-        proxy_set_header Host $host ;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
 
-    location / {
-        proxy_pass @neuroWWW;
-    }
+	location /static/ {
+		try_files $uri $uri/ @proxy_client;
+	}
+
+	location / {
+		try_files $uri @proxy_client;
+	}
+
+	location @proxy_client {
+		proxy_pass http://client;
+		proxy_redirect off;
+
+		proxy_set_header X-Real-IP $remote_addr;
+	      	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	      	proxy_set_header Host $http_host;
+	      	proxy_set_header X-NginX-Proxy true;
+	}
+
 
 	# Only for nginx-naxsi used with nginx-naxsi-ui : process denied requests
 	#location /RequestDenied {
