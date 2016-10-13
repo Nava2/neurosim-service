@@ -1,0 +1,20 @@
+extends layout
+
+block content
+
+  .row
+    .col-md-2.vcenter
+      button#backBtn.btn.btn-lg #[span.glyphicon.glyphicon-arrow-left ]&nbsp; Models
+    .col-md-10.vcenter
+      h2= title
+
+  .row
+    .col-md-12
+      canvas.emscripten#canvas(width="800px" height="600px")
+
+
+block scripts
+  script(src='/static/unity/' + model + '/Module.js')
+  script(src='/static/unity/' + model + '/UnityLoader.js')
+
+  script(type='text/javascript' src='/static/javascripts/client.js')

@@ -1,0 +1,23 @@
+{
+  "name": "neurosim-client",
+  "description": "Client for the NeuroSim project at Western University, Canada",
+  "main": "",
+  "authors": [
+    "Kevin Brightwell <kevin.brightwell2@gmail.com>"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Nava2/neurosim-service",
+  "directory": "public/bower_components",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "^3.3.7",
+    "jquery": "^3.1.1"
+  }
+}

@@ -4,8 +4,12 @@
  * Module dependencies.
  */
 
+require('dotenv').config({
+  path: __dirname + '/.clientenv'
+});
+
 var app = require('../src/client/app');
-var debug = require('debug')('brainsim:server');
+var debug = require('debug')('neurosim:client');
 var http = require('http');
 
 /**

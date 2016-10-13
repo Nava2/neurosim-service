@@ -12,7 +12,7 @@ const expect = chai.expect;
 
 chai.use(chaiHttp);
 
-const test_server = require(__dirname + '/../../src/server/app');
+const test_server = require(__dirname + '/../../src/api/app');
 
 let dbHandle;
 

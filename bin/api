@@ -4,6 +4,11 @@
  * Module dependencies.
  */
 
+require('dotenv').config({
+  path: __dirname + '/.apienv'
+});
+
+
 const argv = require('minimist')(process.argv.slice(2), {
   boolean: ['debug'],
   string: ['database'],
@@ -24,8 +29,8 @@ if (!argv.database) {
   }
 }
 
-var app = require('../src/server/app')(argv);
-var debug = require('debug')('brainsim:server');
+var app = require('./app')(argv);
+var debug = require('debug')('brainsim:api');
 var http = require('http');
 
 /**

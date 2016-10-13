@@ -3,12 +3,26 @@ html
   head
     title= title
 
-    link(rel = 'stylesheet', href = 'https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css')
-    link(rel='stylesheet', href='/stylesheets/codemirror.css')
-    link(rel='stylesheet', href='/stylesheets/style.css')
+    meta(charset="utf-8")
+
+    link(rel='stylesheet', href='/static/bower/bootstrap/dist/css/bootstrap.css')
+    link(rel='stylesheet', href='/static/stylesheets/style.css')
 
   body
     .container
+      .row
         block content
 
-    script(src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js')
+
+    footer.footer
+      .container
+        .row
+          .col-md-4.col-xs-4
+            img.img-responsive.pull-left(src='/static/images/western_eng_logo.png')
+          .col-md-offset-6.col-md-2.col-xs-offset-4.col-xs-4
+            p.pull-right Contact #[a(href="mailto:lallen22@uwo.ca") #[span.glyphicon.glyphicon-envelope ] Lauren Allen]
+
+    script(type='text/javascript' src="/static/bower/jquery/dist/jquery.min.js")
+    script(type='text/javascript' src='/static/bower/bootstrap/dist/js/bootstrap.min.js')
+
+    block scripts

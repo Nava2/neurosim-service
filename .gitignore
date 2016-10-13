@@ -33,8 +33,12 @@ coverage
 build/Release
 
 # Dependency directories
-node_modules
+node_modules/
+bower_components/
 jspm_packages
+
+public/bower/
+public/unity/
 
 # Optional npm cache directory
 .npm

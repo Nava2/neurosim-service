@@ -17,7 +17,7 @@ let app = null;
 
 let dbHandle;
 
-const test_server = require(__dirname + '/../../src/server/app');
+const test_server = require(__dirname + '/../../src/api/app');
 
 function new_server(next) {
   dbHandle = new sqlite3.Database(':memory:');
