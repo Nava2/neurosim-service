@@ -3,14 +3,12 @@ extends layout
 block content
 
   .row
-    .col-md-2.vcenter
-      button#backBtn.btn.btn-lg #[span.glyphicon.glyphicon-arrow-left ]&nbsp; Models
-    .col-md-10.vcenter
+    .col-md-12.vcenter
       h2= title
 
   .row
     .col-md-12
-      canvas.emscripten#canvas(width="800px" height="600px")
+      canvas.emscripten#canvas(width="800px" height="550px")
 
 
 block scripts

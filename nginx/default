@@ -1,3 +1,9 @@
+# You may add here your
+# server {
+#	...
+# }
+# statements for each of your virtual hosts to this file
+
 ##
 # You should look at the following URL's in order to grasp a solid understanding
 # of Nginx configuration files in order to fully unleash the power of Nginx.
@@ -42,6 +48,8 @@ server {
 	root /home/ubuntu/neurosim-www;
 
         location /api/ {
+		rewrite ^/api(/.*)$ $1 break;
+
 		proxy_pass http://api;
 		proxy_redirect off;
 
@@ -53,7 +61,7 @@ server {
 
 
 	location /static/ {
-		try_files $uri $uri/ @proxy_client;
+		try_files $uri $uri/ @proxy_client; 
 	}
 
 	location / {
@@ -73,7 +81,7 @@ server {
 
 	# Only for nginx-naxsi used with nginx-naxsi-ui : process denied requests
 	#location /RequestDenied {
-	#	proxy_pass http://127.0.0.1:8080;
+	#	proxy_pass http://127.0.0.1:8080;    
 	#}
 
 	#error_page 404 /404.html;

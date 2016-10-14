@@ -27,22 +27,16 @@ app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/static', express.static(ROOT_PUBLIC));
 app.use(favicon(path.join(ROOT_PUBLIC, 'favicon.ico')));
 
-app.get('/', (req, res) => {
-  res.render('index', {
-    title: 'NeuroSim - Select a model'
-  });
-});
-
 app.get('/3d', (req, res) => {
   res.render('client', {
-    title: "NeuroSim 3D",
+    title: "Brain Sim 3D",
     model: "3d"
   });
 });
 
 app.get('/2d', (req, res) => {
   res.render('client', {
-    title: "NeuroSim 2D",
+    title: "Brain Sim 2D",
     model: "2d"
   });
 });
