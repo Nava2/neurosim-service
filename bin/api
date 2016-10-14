@@ -29,7 +29,7 @@ if (!argv.database) {
   }
 }
 
-var app = require('./app')(argv);
+var app = require('../src/api/app')(argv);
 var debug = require('debug')('brainsim:api');
 var http = require('http');
 
