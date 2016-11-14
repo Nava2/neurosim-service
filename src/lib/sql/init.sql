@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS session_data (
 );
 
 CREATE TABLE IF NOT EXISTS spatial_data (
-    session_id VARCHAR(36) REFERENCES session_data(uuid)
+    session_id VARCHAR(36) REFERENCES session_data(uuid) ON DELETE CASCADE
   , start_ms DOUBLE NOT NULL
   , end_ms DOUBLE NOT NULL
   , x DOUBLE NOT NULL
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS spatial_data (
 );
 
 CREATE TABLE IF NOT EXISTS tooltip_data (
-    session_id VARCHAR(36) REFERENCES session_data(uuid)
+    session_id VARCHAR(36) REFERENCES session_data(uuid) ON DELETE CASCADE
   , object_id VARCHAR(64) NOT NULL
   , start_ms DOUBLE NOT NULL
   , end_ms DOUBLE NOT NULL
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS tooltip_data (
 );
 
 CREATE TABLE IF NOT EXISTS click_data ( 
-    session_id VARCHAR(36) REFERENCES session_data(uuid)
+    session_id VARCHAR(36) REFERENCES session_data(uuid) ON DELETE CASCADE
   , time_ms DOUBLE NOT NULL
   , button_id VARCHAR(32) NOT NULL
   , UNIQUE(session_id, time_ms)
@@ -76,8 +76,8 @@ CREATE VIEW IF NOT EXISTS spatial_view AS
     , model
     , spatial_data.start_ms as start_ms
     , spatial_data.end_ms as end_ms
-    , strftime('%Y-%m-%dT%H:%M:%f', spatial_data.start_ms, 'unixepoch') as start
-    , strftime('%Y-%m-%dT%H:%M:%f', spatial_data.end_ms, 'unixepoch') as end
+    , strftime('%Y-%m-%dT%H:%M:%f', spatial_data.start_ms/1000.0, 'unixepoch') as start
+    , strftime('%Y-%m-%dT%H:%M:%f', spatial_data.end_ms/1000.0, 'unixepoch') as end
     , x
     , y
     , zoom
@@ -94,8 +94,37 @@ CREATE VIEW IF NOT EXISTS click_view AS
     , user_id
     , model
     , click_data.time_ms as time_ms
-    , strftime('%Y-%m-%dT%H:%M:%f', time_ms, 'unixepoch') as time
+    , strftime('%Y-%m-%dT%H:%M:%f', time_ms/1000.0, 'unixepoch') as time
     , button_id
  FROM session_data, click_data
  WHERE session_data.uuid=click_data.session_id
  ORDER BY user_id, time_ms;
+
+CREATE VIEW IF NOT EXISTS session_view AS 
+  SELECT uuid AS 
+      session_id 
+    , model 
+    , user_id 
+    , start_ms 
+    , end_ms 
+    , strftime('%Y-%m-%dT%H:%M:%f', start_ms/1000.0, 'unixepoch') as start_time 
+    , strftime('%Y-%m-%dT%H:%M:%f', end_ms/1000.0, 'unixepoch') as end_time 
+  FROM session_data 
+  ORDER BY model, user_id, start_ms;
+
+CREATE VIEW IF NOT EXISTS tooltip_view AS 
+  SELECT 
+      session_id 
+    , user_id 
+    , object_id 
+    , tooltip_data.start_ms AS start_ms 
+    , tooltip_data.end_ms AS end_ms 
+    , start_x 
+    , start_y 
+    , end_x 
+    , end_y 
+    , strftime('%Y-%m-%dT%H:%M:%f', tooltip_data.start_ms/1000.0, 'unixepoch') as start_time 
+    , strftime('%Y-%m-%dT%H:%M:%f', tooltip_data.end_ms/1000.0, 'unixepoch') as end_time 
+  FROM tooltip_data, session_data 
+  WHERE tooltip_data.session_id = session_data.uuid 
+  ORDER BY user_id, start_ms, object_id;
