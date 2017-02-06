@@ -48,7 +48,7 @@ describe('session', function() {
     let data = {
       "start": moment("2016-04-05T12:02:32.022"),
       "userId": "demo",
-      "model": "demo_model"
+      "modelId": "demo_model"
     };
 
     chai.request(app)
@@ -60,13 +60,13 @@ describe('session', function() {
 
         let uuid = res.text;
 
-        dbHandle.get("SELECT uuid, start_ms, user_id, model FROM session_data WHERE uuid=?", uuid, (err, row) => {
+        dbHandle.get("SELECT uuid, start_ms, user_id, model_id FROM session_data WHERE uuid=?", uuid, (err, row) => {
           if (err) throw err;
 
           expect(row.uuid).to.equal(uuid);
           expect(row.start_ms).to.equal(data.start.valueOf());
           expect(row.user_id).to.equal(data.userId);
-          expect(row.model).to.equal(data.model);
+          expect(row.model_id).to.equal(data.modelId);
 
           done();
         });
@@ -77,7 +77,7 @@ describe('session', function() {
     let data = {
       "start": moment("2016-04-05T12:02:34.022"),
       "userId": "demo",
-      "model": "demo_model"
+      "modelId": "demo_model"
     };
 
     chai.request(app)
@@ -107,7 +107,7 @@ describe('session', function() {
       .send({
         "start": moment("2016-04-05T12:02:32.022"),
         "userId": "demo",
-        "model": "demo_model"
+        "modelId": "demo_model"
       }).end((err, res) => {
 
         res.should.have.status(200);

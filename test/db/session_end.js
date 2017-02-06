@@ -35,7 +35,7 @@ describe('db.session_end', function() {
     let data = {
       "start": moment("2016-04-05T12:02:32.022"),
       "userId": "demo",
-      "model": "demo_model"
+      "modelId": "demo_model"
     };
 
     new_server(newApp => {

@@ -24,7 +24,7 @@ function new_server(next) {
   }, next);
 }
 
-describe('click', function() {
+describe('mouse', function() {
 
   const UUID_REG = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
@@ -36,7 +36,7 @@ describe('click', function() {
   let sessionData = {
     "start": START_TIME,
     "userId": "demo",
-    "model": "demo_model"
+    "modelId": "demo_model"
   };
 
   beforeEach(done => {
@@ -68,16 +68,18 @@ describe('click', function() {
     "data": [
       {
         "timestamp": START_TIME.clone().add(2, 'm'),
-        "button": "button_id"
+        "objectId": "button_id",
+        "downUp": 1
       }, {
         "timestamp": START_TIME.clone().add(4, 'm'),
-        "button": "button_id"
+        "objectId": "button_id",
+        "downUp": 0
       }
     ]
   };
 
   function verify_good_data(done) {
-    dbHandle.all('SELECT * FROM click_data WHERE session_id=? ORDER BY time_ms', uuid,
+    dbHandle.all('SELECT * FROM mouse_data WHERE session_id=? ORDER BY time_ms', uuid,
       (err, rows) => {
         if (err) throw err;
 
@@ -94,9 +96,9 @@ describe('click', function() {
       });
   }
 
-  it('should add click data points to a session on /click/<id> POST', done => {
+  it('should add mouse data points to a session on /mouse/<id> POST', done => {
     chai.request(app)
-      .post('/click/' + uuid)
+      .post('/mouse/' + uuid)
       .send(GOOD_DATA)
       .end((err, res) => {
         res.should.have.status(200);
@@ -106,7 +108,7 @@ describe('click', function() {
       });
   });
 
-  it('should add click data points to a session on /click/<id> POST after end is passed', done => {
+  it('should add mouse data points to a session on /mouse/<id> POST after end is passed', done => {
     let end_time = moment(sessionData.start).add(5, 'day');
 
     chai.request(app)
@@ -117,7 +119,7 @@ describe('click', function() {
         res.text.should.equal(uuid);
 
         chai.request(app)
-          .post('/click/' + uuid)
+          .post('/mouse/' + uuid)
           .send(GOOD_DATA)
           .end((err, res) => {
             res.should.have.status(200);
@@ -128,12 +130,12 @@ describe('click', function() {
       });
   });
 
-  it('should fail to add data points to a non-existant session on /click/<id> POST', done => {
+  it('should fail to add data points to a non-existant session on /mouse/<id> POST', done => {
     // uuid that doesn't exist
     const bad_uuid = require('uuid').v1();
 
     chai.request(app)
-      .post('/click/' + bad_uuid)
+      .post('/mouse/' + bad_uuid)
       .send(GOOD_DATA)
       .end((err, res) => {
         res.should.have.status(403);
@@ -143,13 +145,13 @@ describe('click', function() {
       });
   });
 
-  it('should fail to add non-unique data points to a session on /click/<id> POST', done => {
+  it('should fail to add non-unique data points to a session on /mouse/<id> POST', done => {
     // make bad data with a duplicate value
     let bad_data = _.cloneDeep(GOOD_DATA);
     bad_data.data.push(bad_data.data[0]);
 
     chai.request(app)
-      .post('/click/' + uuid)
+      .post('/mouse/' + uuid)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -161,7 +163,7 @@ describe('click', function() {
   });
 
 
-  it('should fail to add data points to an ended session on /click/<id> POST', done => {
+  it('should fail to add data points to an ended session on /mouse/<id> POST', done => {
     // Close the session via /session/end/:uuid
     const end_time = START_TIME.clone().add(1, 's');
 
@@ -174,9 +176,9 @@ describe('click', function() {
         res.should.have.status(200);
         res.text.should.equal(uuid);
 
-        // now try to add click data
+        // now try to add mouse data
         chai.request(app)
-          .post('/click/' + uuid)
+          .post('/mouse/' + uuid)
           .send(GOOD_DATA)
           .end((err, res) => {
             res.should.have.status(403);
@@ -187,13 +189,13 @@ describe('click', function() {
       });
   });
 
-  it('should fail to add malformed data to a session on /click/<id> POST', done => {
+  it('should fail to add malformed data to a session on /mouse/<id> POST', done => {
 
     let bad_data = _.cloneDeep(GOOD_DATA);
     delete bad_data.data[0]['timestamp'];
 
     chai.request(app)
-      .post(`/click/${uuid}`)
+      .post(`/mouse/${uuid}`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -205,13 +207,13 @@ describe('click', function() {
 
   });
 
-  it('After an error, correct requests should pass /click/<id> POST', done => {
+  it('After an error, correct requests should pass /mouse/<id> POST', done => {
 
     let bad_data = _.cloneDeep(GOOD_DATA);
     delete bad_data.data[0]['timestamp'];
 
     chai.request(app)
-      .post(`/click/${uuid}`)
+      .post(`/mouse/${uuid}`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -219,7 +221,7 @@ describe('click', function() {
         res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
 
         chai.request(app)
-          .post(`/click/${uuid}`)
+          .post(`/mouse/${uuid}`)
           .send(GOOD_DATA)
           .end((err, res) => {
             res.should.have.status(200);

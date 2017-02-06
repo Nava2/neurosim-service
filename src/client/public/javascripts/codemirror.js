@@ -1484,7 +1484,7 @@
       var pos = posFromMouse(cm, e), scrollPos = display.scroller.scrollTop;
       if (!pos || presto) return; // Opera is difficult.
 
-      // Reset the current text selection only if the click is done outside of the selection
+      // Reset the current text selection only if the mouse is done outside of the selection
       // and 'resetSelectionOnContextMenu' option is true.
       var reset = cm.options.resetSelectionOnContextMenu;
       if (reset && cm.doc.sel.contains(pos) == -1)
@@ -3434,7 +3434,7 @@
   function registerEventHandlers(cm) {
     var d = cm.display;
     on(d.scroller, "mousedown", operation(cm, onMouseDown));
-    // Older IE's will not fire a second mousedown for a double click
+    // Older IE's will not fire a second mousedown for a double mouse
     if (ie && ie_version < 11)
       on(d.scroller, "dblclick", operation(cm, function(e) {
         if (signalDOMEvent(cm, e)) return;
@@ -3593,10 +3593,10 @@
     return coords;
   }
 
-  // A mouse down can be a single click, double click, triple click,
+  // A mouse down can be a single mouse, double mouse, triple mouse,
   // start of selection drag, start of text drag, new cursor
-  // (ctrl-click), rectangle drag (alt-drag), or xwin
-  // middle-click-paste. Or it might be a click on something we should
+  // (ctrl-mouse), rectangle drag (alt-drag), or xwin
+  // middle-mouse-paste. Or it might be a mouse on something we should
   // not interfere with, such as a scrollbar or widget.
   function onMouseDown(e) {
     var cm = this, display = cm.display;
@@ -3666,7 +3666,7 @@
   }
 
   // Start a text drag. When it ends, see if any dragging actually
-  // happen, and treat as a click if it didn't.
+  // happen, and treat as a mouse if it didn't.
   function leftButtonStartDrag(cm, e, start, modifier) {
     var display = cm.display, startTime = +new Date;
     var dragEnd = operation(cm, function(e2) {
@@ -4297,7 +4297,7 @@
 
   // To make the context menu work, we need to briefly unhide the
   // textarea (making it as unobtrusive as possible) to let the
-  // right-click take effect on it.
+  // right-mouse take effect on it.
   function onContextMenu(cm, e) {
     if (eventInWidget(cm.display, e) || contextMenuInGutter(cm, e)) return;
     if (signalDOMEvent(cm, e, "contextmenu")) return;

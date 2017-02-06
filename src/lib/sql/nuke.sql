@@ -8,8 +8,10 @@ DROP VIEW IF EXISTS spatial_view;
 
 -- Now drop tables:
 
-DROP TABLE IF EXISTS click_data;
+DROP TABLE IF EXISTS mouse_data;
 DROP TABLE IF EXISTS spatial_data;
 DROP TABLE IF EXISTS session_data;
+DROP TABLE IF EXISTS score_data;
+DROP TABLE IF EXISTS tooltip_data;
 
 
