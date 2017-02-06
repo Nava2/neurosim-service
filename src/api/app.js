@@ -59,12 +59,12 @@ module.exports = (argv, postInit) => {
 
       const userId = req.body.userId.toLowerCase().trim();
       const startTime = moment(req.body.start.trim()).valueOf();
-      const model = req.body.model.toLowerCase().trim();
+      const modelId = req.body.modelId.toLowerCase().trim();
 
       let meta = {
         userId: userId,
         start: startTime,
-        model: model
+        modelId: modelId
       };
 
       db.session.create(meta, (err, uuid) => {
@@ -127,6 +127,23 @@ module.exports = (argv, postInit) => {
       });
     });
 
+    app.options('/score/:uuid');
+    app.post('/score/:uuid', (req, res) => {
+      req.accepts('application/json');
+      res.type('text');
+
+      const sessionId = req.params.uuid;
+      const data = req.body.data;
+
+      db.score.add(sessionId, data, err => {
+        if (err) {
+          return res.status(403).send(err.message);
+        }
+
+        return res.send(`${data.length}`);
+      });
+    });
+
     app.options('/tooltip/:uuid');
     app.post('/tooltip/:uuid', (req, res) => {
       req.accepts('application/json');
@@ -145,21 +162,39 @@ module.exports = (argv, postInit) => {
     });
 
 
-    app.options('/click/:uuid');
-    app.post('/click/:uuid', (req, res) => {
+    app.options('/mouse/:uuid');
+    app.post('/mouse/:uuid', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
       const sessionId = req.params.uuid;
       const data = req.body.data;
 
-      db.click.add(sessionId, data, err => {
+      db.mouse.add(sessionId, data, err => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
         return res.send(`${data.length}`);
       });
+    });
+
+    app.options('/score/:uuid');
+    app.post('/score/:uuid', (req, res) => {
+      req.accepts('application/json');
+      res.type('text');
+
+      const sessionId = req.params.uuid;
+      const data = req.body.data;
+
+      db.mouse.add(sessionId, data, err => {
+        if (err) {
+          return res.status(403).send(err.message);
+        }
+
+        return res.send(`${data.length}`);
+      });
+
     });
 
     // catch 404 and forward to error handler

@@ -70,10 +70,10 @@ module.exports = (w) => {
     }
 
     create(meta, next) {
-      const insert_stmt = this._db.prepare("INSERT OR ABORT INTO session_data(user_id, start_ms, end_ms, model, uuid) VALUES (?, ?, ?, ?, ?)");
+      const insert_stmt = this._db.prepare("INSERT OR ABORT INTO session_data(user_id, start_ms, end_ms, model_id, uuid) VALUES (?, ?, ?, ?, ?)");
 
       const new_uuid = uuid.v1();
-      insert_stmt.run(meta.userId, meta.start, meta.end, meta.model, new_uuid, prev_err => {
+      insert_stmt.run(meta.userId, meta.start, meta.end, meta.modelId, new_uuid, prev_err => {
         insert_stmt.finalize(err => {
           if (prev_err) return next(prev_err, null);
           if (err) return next(err, null);
@@ -90,19 +90,36 @@ module.exports = (w) => {
      * @param next Callback
      */
     get_uuid(meta, next) {
-      this._db.get("SELECT uuid FROM session_data WHERE user_id=? AND start_ms=? AND model=?",
-                   meta.userId, meta.start, meta.model,
+      this._db.get("SELECT uuid FROM session_data WHERE user_id=? AND start_ms=? AND model_id=?",
+                   meta.userId, meta.start, meta.modelId,
         (err, row) => {
           if (err) {
             return next(err, null);
           }
 
           if (!row) {
-            return next(new Error(`Unknown uuid for: user_id=${meta.userId}, start=${meta.start}, model=${meta.model}`), null);
+            return next(new Error(`Unknown uuid for: user_id=${meta.userId}, start=${meta.start}, model_id=${meta.modelId}`), null);
           }
 
           return next(null, row.uuid);
         });
+    }
+
+    /**
+     * Checks if a uuid for a session is open
+     * @param uuid
+     * @param against {moment|Number} The time to check against (moment)
+     * @param next
+     */
+    exists(uuid, next) {
+      this._db.get("SELECT end_ms FROM session_data WHERE uuid=?", uuid, (err, row) => {
+        if (err) return next(err);
+        if (!row) {
+          return next(new Error(`Session ID (${uuid}) does not exist.`));
+        }
+
+        return next(null, true);
+      });
     }
 
     /**
@@ -152,7 +169,7 @@ module.exports = (w) => {
 
 
 
-  class DbClick {
+  class DbMouse {
 
     constructor(handler) {
       this._parent = handler;
@@ -181,9 +198,9 @@ module.exports = (w) => {
           return next(err);
         }
 
-        const stmt = this._db.prepare("INSERT INTO click_data" +
-          "(session_id, time_ms, button_id) " +
-          "VALUES ($session_id, $timestamp, $button)");
+        const stmt = this._db.prepare("INSERT INTO mouse_data" +
+          "(session_id, time_ms, object_id, down_up) " +
+          "VALUES ($session_id, $timestamp, $objectId, $downUp)");
         run_multi_stmt(this._db, stmt, insert_rows, next);
       });
     }
@@ -220,9 +237,55 @@ module.exports = (w) => {
           return next(err);
         }
 
-        const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, start_ms, end_ms," +
+        const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, object_id, start_ms, end_ms," +
           " x, y, zoom, alpha, beta, gamma)" +
-          " VALUES ($session_id, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");
+          " VALUES ($session_id, $objectId, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");
+        run_multi_stmt(this._db, stmt, insert_rows, next);
+      });
+    }
+  }
+
+  class DbScore {
+
+    constructor(handler) {
+      this._db = handler._db;
+      this._parent = handler;
+    }
+
+    add(session_id, rows, next) {
+      // nothing to add, so don't bother with database stuff
+      if (rows.length <= 0) {
+        return next(null, rows.length);
+      }
+
+
+      const insert_rows = rows
+        .map(r => {
+          let out = { objectId: r.objectId };
+          _.extend(out, _.fromPairs(_.map(r.expected, (value, key) => ["e_" + key, value])));
+          _.extend(out, _.fromPairs(_.map(r.actual, (value, key) => ["a_" + key, value])));
+
+          return out;
+        })
+        .map(r => (_.mapKeys(r, (v, k) => ("$" + k))))
+        .map(r => {
+          r["$session_id"] = session_id;
+
+          return r;
+        });
+
+      this._parent.session.exists(session_id, err => {
+        if (!!err) {
+          return next(err);
+        }
+
+        const stmt = this._db.prepare("INSERT INTO score_data(session_id, object_id, " +
+          " e_x, e_y, e_zoom, e_alpha, e_beta, e_gamma," +
+          " a_x, a_y, a_zoom, a_alpha, a_beta, a_gamma)" +
+          " VALUES ($session_id, $objectId, " +
+          "$e_x, $e_y, $e_zoom, $e_alpha, $e_beta, $e_gamma, " +
+          "$a_x, $a_y, $a_zoom, $a_alpha, $a_beta, $a_gamma" +
+          ")");
         run_multi_stmt(this._db, stmt, insert_rows, next);
       });
     }
@@ -263,7 +326,7 @@ module.exports = (w) => {
           " start_ms, end_ms," +
           " start_x, start_y, " +
           " end_x, end_y)" +
-          " VALUES ($session_id, $object, $start, $end, $start_x, $start_y, $end_x, $end_y)");
+          " VALUES ($session_id, $objectId, $start, $end, $start_x, $start_y, $end_x, $end_y)");
         run_multi_stmt(this._db, stmt, insert_rows, next);
       });
     }
@@ -324,8 +387,9 @@ module.exports = (w) => {
       this._updateInterval = setInterval(update_closed, (this._TIMEOUT_INTERVAL / 2.0) * 1000);
 
       this._session = new DbSession(this);
-      this._click = new DbClick(this);
+      this._mouse = new DbMouse(this);
       this._spatial = new DbSpatial(this);
+      this._score = new DbScore(this);
       this._tooltip = new DbTooltip(this);
     }
 
@@ -400,12 +464,16 @@ module.exports = (w) => {
       return this._session;
     }
 
-    get click() {
-      return this._click;
+    get mouse() {
+      return this._mouse;
     }
 
     get spatial() {
       return this._spatial;
+    }
+
+    get score() {
+      return this._score;
     }
 
     get tooltip() {

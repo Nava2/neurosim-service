@@ -34,7 +34,7 @@ describe('spatial', () => {
     let data = {
       "start": START_TIME,
       "userId": "demo",
-      "model": "demo_model"
+      "modelId": "demo_model"
     };
 
     new_server(newApp => {
@@ -66,6 +66,7 @@ describe('spatial', () => {
   const GOOD_DATA = {
     "data": [
       {
+        "objectId": "3d",
         "start": START_TIME.clone().add(1, 'm'),
         "end": START_TIME.clone().add(1, 'm').add(23, 's'),
         "x": 20.0,
@@ -77,6 +78,7 @@ describe('spatial', () => {
       },
 
       {
+        "objectId": "3d",
         "start": START_TIME.clone().add(3, 'm'),
         "end": START_TIME.clone().add(3, 'm').add(23, 's'),
         "x": 20.0,
@@ -87,6 +89,7 @@ describe('spatial', () => {
         "gamma": 234.0
       },
       {
+        "objectId": "3d",
         "start": START_TIME.clone().add(3, 'm').add(23, 's'),
         "end": START_TIME.clone().add(5, 'm'),
         "x": 20.0,
@@ -109,6 +112,7 @@ describe('spatial', () => {
           let e = arr[1];
 
           expect(a.session_id).to.equal(uuid);
+          expect(a.object_id).to.equal(e.objectId);
           expect(a.start_ms).to.equal(e.start.valueOf());
           expect(a.end_ms).to.equal(e.end.valueOf());
 
@@ -184,7 +188,7 @@ describe('spatial', () => {
         res.should.have.status(200);
         res.text.should.equal(uuid);
 
-        // now try to add click data
+        // now try to add mouse data
         chai.request(app)
           .post(`/spatial/${uuid}`)
           .send(GOOD_DATA)
@@ -210,7 +214,7 @@ describe('spatial', () => {
         res.should.have.status(200);
         res.text.should.equal(uuid);
 
-        // now try to add click data
+        // now try to add mouse data
         chai.request(app)
           .post(`/spatial/${uuid}`)
           .send(GOOD_DATA)
