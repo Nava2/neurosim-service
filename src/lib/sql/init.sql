@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS spatial_data (
   , alpha DOUBLE NOT NULL
   , beta DOUBLE NOT NULL
   , gamma DOUBLE DEFAULT 0.0
-  , UNIQUE (session_id, start_ms, end_ms)
+  , UNIQUE (session_id, object_id, start_ms, end_ms)
   , CHECK (start_ms <= end_ms)
 );
 
