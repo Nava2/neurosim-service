@@ -34,7 +34,7 @@ describe('tooltip', () => {
     let data = {
       "start": START_TIME,
       "userId": "demo",
-      "model": "demo_model"
+      "modelId": "demo_model"
     };
 
     new_server(newApp => {
@@ -66,6 +66,7 @@ describe('tooltip', () => {
   const GOOD_DATA = {
     "data": [
       {
+        "objectId": "lobe",
         "start": START_TIME.clone().add(1, 'm'),
         "end": START_TIME.clone().add(1, 'm').add(23, 's'),
         "start_x": 20.0,
@@ -75,6 +76,7 @@ describe('tooltip', () => {
       },
 
       {
+        "objectId": "lobe",
         "start": START_TIME.clone().add(3, 'm'),
         "end": START_TIME.clone().add(3, 'm').add(23, 's'),
         "start_x": 41.0,
@@ -83,6 +85,7 @@ describe('tooltip', () => {
         "end_y": 32.0
       },
       {
+        "objectId": "lobe",
         "start": START_TIME.clone().add(3, 'm').add(23, 's'),
         "end": START_TIME.clone().add(5, 'm'),
         "start_x": 41.0,
@@ -176,7 +179,7 @@ describe('tooltip', () => {
         res.should.have.status(200);
         res.text.should.equal(uuid);
 
-        // now try to add click data
+        // now try to add mouse data
         chai.request(app)
           .post(`/tooltip/${uuid}`)
           .send(GOOD_DATA)
@@ -202,7 +205,7 @@ describe('tooltip', () => {
         res.should.have.status(200);
         res.text.should.equal(uuid);
 
-        // now try to add click data
+        // now try to add mouse data
         chai.request(app)
           .post(`/tooltip/${uuid}`)
           .send(GOOD_DATA)
