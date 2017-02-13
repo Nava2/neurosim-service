@@ -66,6 +66,18 @@ describe('spatial', () => {
   const GOOD_DATA = {
     "data": [
       {
+        "objectId": "2d",
+        "start": START_TIME.clone().add(1, 'm'),
+        "end": START_TIME.clone().add(1, 'm').add(23, 's'),
+        "x": 20.0,
+        "y": 23.4,
+        "zoom": -1.0,
+        "alpha": 234.0,
+        "beta": 234.0,
+        "gamma": 234.0
+      },
+
+      {
         "objectId": "3d",
         "start": START_TIME.clone().add(1, 'm'),
         "end": START_TIME.clone().add(1, 'm').add(23, 's'),
@@ -103,7 +115,7 @@ describe('spatial', () => {
   };
 
   function verify_good_data(done) {
-    dbHandle.all('SELECT * FROM spatial_data WHERE session_id=? ORDER BY start_ms', uuid,
+    dbHandle.all('SELECT * FROM spatial_data WHERE session_id=? ORDER BY start_ms, object_id', uuid,
       (err, rows) => {
         if (err) throw err;
 
@@ -137,7 +149,7 @@ describe('spatial', () => {
       .send(GOOD_DATA)
       .end((err, res) => {
         res.should.have.status(200);
-        res.text.should.equal("3");
+        res.text.should.equal("" + GOOD_DATA.data.length);
 
         verify_good_data(done);
       });
@@ -264,7 +276,7 @@ describe('spatial', () => {
           .send(GOOD_DATA)
           .end((err, res) => {
             res.should.have.status(200);
-            res.text.should.equal("3");
+            res.text.should.equal("" + GOOD_DATA.data.length);
 
             verify_good_data(done);
           });
