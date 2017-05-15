@@ -29,7 +29,7 @@ describe('spatial', () => {
   let app = null;
   let uuid = null;
 
-  const START_TIME = moment("2016-04-05T12:02:32.022");
+  const START_TIME = moment("2012-04-05T12:02:32.022");
   beforeEach(done => {
     let data = {
       "start": START_TIME,
@@ -114,16 +114,15 @@ describe('spatial', () => {
     ]
   };
 
-  function verify_good_data(done) {
+  function verify_good_data(check, done) {
     dbHandle.all('SELECT * FROM spatial_data WHERE session_id=? ORDER BY start_ms, object_id', uuid,
       (err, rows) => {
         if (err) throw err;
 
-        _.zip(rows, GOOD_DATA.data).forEach(arr => {
+        _.zip(rows, check.data).forEach(arr => {
           let a = arr[0];
           let e = arr[1];
 
-          expect(a.session_id).to.equal(uuid);
           expect(a.object_id).to.equal(e.objectId);
           expect(a.start_ms).to.equal(e.start.valueOf());
           expect(a.end_ms).to.equal(e.end.valueOf());
@@ -135,7 +134,6 @@ describe('spatial', () => {
           expect(a.alpha).to.equal(e.alpha);
           expect(a.beta).to.equal(e.beta);
           expect(a.gamma).to.equal(e.gamma);
-          expect(a.button_id).to.equal(e.button);
         });
 
         done();
@@ -151,7 +149,7 @@ describe('spatial', () => {
         res.should.have.status(200);
         res.text.should.equal("" + GOOD_DATA.data.length);
 
-        verify_good_data(done);
+        verify_good_data(GOOD_DATA, done);
       });
   });
 
@@ -181,7 +179,7 @@ describe('spatial', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: UNIQUE constraint failed:/);
+        res.text.should.match(/^SQLITE_CONSTRAINT:/);
 
         done();
       });
@@ -278,9 +276,27 @@ describe('spatial', () => {
             res.should.have.status(200);
             res.text.should.equal("" + GOOD_DATA.data.length);
 
-            verify_good_data(done);
+            verify_good_data(GOOD_DATA, done);
           });
       });
 
+  });
+
+  it('will not add overlapping time interval data', done => {
+
+    // Force a time overlap
+    let bad_data = _.cloneDeep(GOOD_DATA);
+    bad_data.data[1].start = bad_data.data[0].start.add(6, 's');
+
+    chai.request(app)
+      .post(`/spatial/${uuid}`)
+      .send(bad_data)
+      .end((err, res) => {
+        res.should.have.status(403);
+        res.text.should.match(/^SQLITE_CONSTRAINT:/);
+        res.text.should.match(/.*overlap.*/);
+
+        done();
+      });
   });
 });

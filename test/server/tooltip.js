@@ -160,7 +160,7 @@ describe('tooltip', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: UNIQUE constraint failed:/);
+        res.text.should.match(/^SQLITE_CONSTRAINT:/);
 
         done();
       });
@@ -261,5 +261,21 @@ describe('tooltip', () => {
           });
       });
 
+  });
+
+  it('should not add overlapping time interval data', done => {
+    let bad_data = _.cloneDeep(GOOD_DATA);
+    bad_data.data[1].start = bad_data.data[0].start.add(6, 's');
+
+    chai.request(app)
+      .post(`/tooltip/${uuid}`)
+      .send(bad_data)
+      .end((err, res) => {
+        res.should.have.status(403);
+        res.text.should.match(/^SQLITE_CONSTRAINT:/);
+        res.text.should.match(/.*overlap.*/);
+
+        done();
+      });
   });
 });
