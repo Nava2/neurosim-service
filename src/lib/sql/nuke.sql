@@ -14,4 +14,5 @@ DROP TABLE IF EXISTS session_data;
 DROP TABLE IF EXISTS score_data;
 DROP TABLE IF EXISTS tooltip_data;
 
-
+DROP TRIGGER IF EXISTS check_spatial_times_acceptable;
+DROP TRIGGER IF EXISTS check_tooltip_times_acceptable;

@@ -23,6 +23,18 @@ CREATE TABLE IF NOT EXISTS spatial_data (
   , CHECK (start_ms <= end_ms)
 );
 
+CREATE TRIGGER check_spatial_times_acceptable
+BEFORE INSERT ON spatial_data
+FOR EACH ROW
+BEGIN
+  SELECT RAISE(FAIL, 'time overlaps with another spatial data record')
+  FROM spatial_data
+  WHERE object_id = NEW.object_id
+    AND ((start_ms >= NEW.start_ms AND NEW.start_ms <= end_ms)
+        OR (start_ms >= NEW.end_ms AND NEW.end_ms <= end_ms)
+        OR (NEW.start_ms <= start_ms AND NEW.end_ms >= end_ms));
+END;
+
 CREATE TABLE IF NOT EXISTS tooltip_data (
     session_id VARCHAR(36) REFERENCES session_data(uuid) ON DELETE CASCADE
   , object_id VARCHAR(32) NOT NULL
@@ -35,6 +47,18 @@ CREATE TABLE IF NOT EXISTS tooltip_data (
   , UNIQUE (session_id, object_id, start_ms, end_ms)
   , CHECK (start_ms <= end_ms)
 );
+
+CREATE TRIGGER check_tooltip_times_acceptable
+BEFORE INSERT ON tooltip_data
+FOR EACH ROW
+BEGIN
+  SELECT RAISE(FAIL, 'time overlaps with another tooltip data record')
+  FROM tooltip_data
+  WHERE object_id = NEW.object_id
+    AND ((start_ms >= NEW.start_ms AND NEW.start_ms <= end_ms)
+        OR (start_ms >= NEW.end_ms AND NEW.end_ms <= end_ms)
+        OR (NEW.start_ms <= start_ms AND NEW.end_ms >= end_ms));
+END;
 
 CREATE TABLE IF NOT EXISTS mouse_data (
     session_id VARCHAR(36) REFERENCES session_data(uuid) ON DELETE CASCADE
