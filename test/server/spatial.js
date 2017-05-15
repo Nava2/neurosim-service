@@ -286,7 +286,7 @@ describe('spatial', () => {
 
     // Force a time overlap
     let bad_data = _.cloneDeep(GOOD_DATA);
-    bad_data.data[1].start = bad_data.data[0].start.add(6, 's');
+    bad_data.data[2].start = bad_data.data[1].start.add(6, 's');
 
     chai.request(app)
       .post(`/spatial/${uuid}`)
