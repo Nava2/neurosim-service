@@ -8,10 +8,12 @@ block content
 
   .row
     .col-md-12
-      canvas.emscripten#canvas(width="800px" height="550px")
+      canvas.emscripten#canvas(width="960px" height="600px" oncontextmenu="event.preventDefault()")
 
 
 block scripts
+  script(type='text/javascript' src='/static/javascripts/client.js')
+
   script(type='text/javascript').
     var Module = {
       TOTAL_MEMORY: 268435456,
@@ -26,4 +28,3 @@ block scripts
     };
   script(src='/static/unity/' + model + '/Release/UnityLoader.js')
 
-  script(type='text/javascript' src='/static/javascripts/client.js')

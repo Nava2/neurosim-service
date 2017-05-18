@@ -41,6 +41,13 @@ app.get('/2d', (req, res) => {
   });
 });
 
+app.get('/puzzle', (req, res) => {
+  res.render('client', {
+    title: "Brain Sim Puzzle",
+    model: "puzz"
+  });
+});
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
