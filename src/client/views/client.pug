@@ -18,7 +18,7 @@ block content
 
 
 block scripts
-  script(type='text/javascript' src='/static/javascripts/client.js')
+  script(type='text/javascript' src='/static/javascripts/unity_progress.js')
   script(src='/static/unity/' + model + '/Release/UnityLoader.js')
   script(type='text/javascript').
     var gameInstance = UnityLoader.instantiate("gameContainer", "/static/unity/!{model}/Release/brainsim-!{model}.json", {onProgress: UnityProgress});
