@@ -29,7 +29,7 @@ FOR EACH ROW
 BEGIN
   SELECT RAISE(FAIL, 'time overlaps with another spatial data record')
   FROM spatial_data
-  WHERE object_id = NEW.object_id
+  WHERE ((session_id = NEW.session_id) AND (object_id = NEW.object_id))
     AND ((start_ms >= NEW.start_ms AND NEW.start_ms <= end_ms)
         OR (start_ms >= NEW.end_ms AND NEW.end_ms <= end_ms)
         OR (NEW.start_ms <= start_ms AND NEW.end_ms >= end_ms));
@@ -54,7 +54,7 @@ FOR EACH ROW
 BEGIN
   SELECT RAISE(FAIL, 'time overlaps with another tooltip data record')
   FROM tooltip_data
-  WHERE object_id = NEW.object_id
+  WHERE ((session_id = NEW.session_id) AND (object_id = NEW.object_id))
     AND ((start_ms >= NEW.start_ms AND NEW.start_ms <= end_ms)
         OR (start_ms >= NEW.end_ms AND NEW.end_ms <= end_ms)
         OR (NEW.start_ms <= start_ms AND NEW.end_ms >= end_ms));

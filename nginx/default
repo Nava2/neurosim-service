@@ -47,7 +47,7 @@ server {
 
 	root /home/ubuntu/neurosim-www;
 
-        location /api/ {
+  location /api/ {
 		rewrite ^/api(/.*)$ $1 break;
 
 		proxy_pass http://api;

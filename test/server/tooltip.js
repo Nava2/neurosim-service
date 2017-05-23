@@ -24,34 +24,40 @@ function new_server(next) {
   }, next);
 }
 
+const START_TIME = moment("2012-04-05T12:02:32.022");
+
+function createSession(userId, app, next) {
+  let data = {
+    "start": START_TIME,
+    "userId": userId,
+    "modelId": "demo_model"
+  };
+
+  chai.request(app)
+    .post('/session/new')
+    .send(data)
+    .end((err, res) => {
+      res.should.have.status(200);
+
+      const UUID_REG = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+      res.text.should.match(UUID_REG);
+
+      next(res.text);
+    });
+}
 
 describe('tooltip', () => {
   let app = null;
   let uuid = null;
 
-  const START_TIME = moment("2016-04-05T12:02:32.022");
   beforeEach(done => {
-    let data = {
-      "start": START_TIME,
-      "userId": "demo",
-      "modelId": "demo_model"
-    };
-
     new_server(newApp => {
       app = newApp;
-      chai.request(app)
-        .post('/session/new')
-        .send(data)
-        .end((err, res) => {
-          res.should.have.status(200);
 
-          const UUID_REG = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-          res.text.should.match(UUID_REG);
-
-          uuid = res.text;
-
-          done();
-        });
+      createSession("demo", newApp, newId => {
+        uuid = newId;
+        done();
+      });
     });
   });
 
@@ -278,4 +284,56 @@ describe('tooltip', () => {
         done();
       });
   });
+
+  it('multiple users are the same time should not be problematic', done => {
+    let data = {
+      "data": [{
+        "objectId": "Skull",
+        "start": "2017-05-23T13:43:36.1150000-04:00",
+        "end": "2017-05-23T13:43:36.1970000-04:00",
+        "start_x": 566.0,
+        "start_y": 356.0,
+        "end_x": 502.0,
+        "end_y": 330.0
+      }, {
+        "objectId": "Left Facial Artery",
+        "start": "2017-05-23T13:43:36.1990000-04:00",
+        "end": "2017-05-23T13:43:36.2820000-04:00",
+        "start_x": 502.0,
+        "start_y": 330.0,
+        "end_x": 476.0,
+        "end_y": 302.0
+      }]
+    };
+
+
+    let otherUUID;
+
+    let next = () => {
+      chai.request(app)
+        .post(`/tooltip/${uuid}`)
+        .send(data)
+        .end((err, res) => {
+          res.should.have.status(200);
+          res.text.should.equal("" + data.data.length);
+
+          chai.request(app)
+            .post(`/tooltip/${otherUUID}`)
+            .send(data)
+            .end((err, res) => {
+              res.should.have.status(200);
+              res.text.should.equal("" + data.data.length);
+              done();
+            });
+        });
+    };
+
+    createSession("demo2", app, newUUID => {
+      otherUUID = newUUID;
+
+      next();
+    });
+
+  });
+
 });
