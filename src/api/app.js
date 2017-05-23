@@ -120,6 +120,7 @@ module.exports = (argv, postInit) => {
 
       db.spatial.add(sessionId, data, err => {
         if (err) {
+          w.error(err);
           return res.status(403).send(err.message);
         }
 
@@ -154,6 +155,7 @@ module.exports = (argv, postInit) => {
 
       db.tooltip.add(sessionId, data, err => {
         if (err) {
+          w.error(err);
           return res.status(403).send(err.message);
         }
 
