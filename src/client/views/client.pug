@@ -8,29 +8,18 @@ block content
 
     .col-lg-4
       img.pull-right(src="/static/img/fullscreen.png"
-                     onclick="SetFullscreen(1);")
+                     onclick="gameInstance.SetFullscreen(1);")
       // Note: When upgrading Unity, `SetFullscreen` is replaced with
       // `gameObject.setFullScreen(1);` (the unity developers got better...)
 
   .row
-    .col-md-8
-      canvas.emscripten#canvas(oncontextmenu="event.preventDefault()")
+    .col-lg-12
+      #gameContainer
 
 
 block scripts
-  script(type='text/javascript' src='/static/javascripts/client.js')
-
-  script(type='text/javascript').
-    var Module = {
-      TOTAL_MEMORY: 268435456,
-      errorhandler: null,			// arguments: err, url, line. This function must return 'true' if the error is handled, otherwise 'false'
-      compatibilitycheck: null,
-      backgroundColor: "#222C36",
-      splashStyle: "Light",
-      dataUrl: "/static/unity/!{model}/Release/!{model}_test.data",
-      codeUrl: "/static/unity/!{model}/Release/!{model}_test.js",
-      asmUrl: "/static/unity/!{model}/Release/!{model}_test.asm.js",
-      memUrl: "/static/unity/!{model}/Release/!{model}_test.mem",
-    };
+  script(type='text/javascript' src='/static/javascripts/unity_progress.js')
   script(src='/static/unity/' + model + '/Release/UnityLoader.js')
+  script(type='text/javascript').
+    var gameInstance = UnityLoader.instantiate("gameContainer", "/static/unity/!{model}/Release/brainsim-!{model}.json", {onProgress: UnityProgress});
 
