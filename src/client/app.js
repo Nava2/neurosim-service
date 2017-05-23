@@ -44,7 +44,7 @@ app.get('/2d', (req, res) => {
 app.get('/puzzle', (req, res) => {
   res.render('client', {
     title: "Brain Sim Puzzle",
-    model: "puzz"
+    model: "puzzle"
   });
 });
 
