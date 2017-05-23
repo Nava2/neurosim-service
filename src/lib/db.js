@@ -237,8 +237,6 @@ module.exports = (w) => {
           return next(err);
         }
 
-
-
         const stmt = this._db.prepare("INSERT INTO spatial_data(session_id, object_id, start_ms, end_ms," +
           " x, y, zoom, alpha, beta, gamma)" +
           " VALUES ($session_id, $objectId, $start, $end, $x, $y, $zoom, $alpha, $beta, $gamma)");

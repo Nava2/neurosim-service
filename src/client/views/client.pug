@@ -3,12 +3,18 @@ extends layout
 block content
 
   .row
-    .col-md-12.vcenter
+    .col-lg-8
       h2= title
 
+    .col-lg-4
+      img.pull-right(src="/static/img/fullscreen.png"
+                     onclick="SetFullscreen(1);")
+      // Note: When upgrading Unity, `SetFullscreen` is replaced with
+      // `gameObject.setFullScreen(1);` (the unity developers got better...)
+
   .row
-    .col-md-12
-      canvas.emscripten#canvas(width="960px" height="600px" oncontextmenu="event.preventDefault()")
+    .col-md-8
+      canvas.emscripten#canvas(oncontextmenu="event.preventDefault()")
 
 
 block scripts

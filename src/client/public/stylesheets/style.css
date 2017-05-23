@@ -8,6 +8,9 @@ canvas {
     z-index: 9;
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     -moz-box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+
+    width: 960px;
+    height: 600px;
 }
 
 .vcenter {
@@ -19,6 +22,8 @@ canvas {
 .container {
     padding: 0 15px;
     margin-top: 20px;
+
+    width: 960px;
 }
 
 .footer {
