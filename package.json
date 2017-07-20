@@ -14,6 +14,7 @@
     "debug": "~2.2.0",
     "dotenv": "^2.0.0",
     "express": "~4.13.4",
+    "jsonlint-mod": "^1.7.2",
     "lodash": "^4.15.0",
     "minimist": "^1.2.0",
     "moment": "^2.15.0",
@@ -25,9 +26,9 @@
     "winston": "^2.2.0"
   },
   "devDependencies": {
-    "csv-stringify": "^1.0.4",
     "chai": "^3.5.0",
     "chai-http": "^3.0.0",
+    "csv-stringify": "^1.0.4",
     "mocha": "^3.1.0"
   }
 }

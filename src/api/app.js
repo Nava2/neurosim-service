@@ -8,6 +8,9 @@ const bodyParser = require('body-parser');
 
 const cors = require('cors');
 
+const jsonlint = require("jsonlint-mod");
+const jsonFormatter = require('jsonlint-mod/lib/formatter');
+
 const w = require('winston');
 
 w.add(w.transports.File, {
@@ -29,7 +32,44 @@ module.exports = (argv, postInit) => {
   let db = argv.database;
 
   app.use(logger('dev'));
-  app.use(bodyParser.json());
+  app.use(bodyParser.json({
+    verify: (req, res, buf, encoding) => {
+      const fromBuffer = buf.toString(encoding);
+      try {
+        jsonlint.parse(fromBuffer);
+      } catch (e) {
+        if (process.env['NODE_ENV'] !== 'production') {
+          const json = jsonFormatter.formatter.formatJson(fromBuffer, '  ');
+          const fromError = e.message;
+
+          // Now that an error happened, we need to extract the "context" of the error
+          // so we get a pretty message for developers to debug.
+          const lineNo = Number.parseInt(/line\s+(\d+)$/.exec(fromError)[1]);
+
+          const lines = json.split('\n');
+
+          const COUNT = Math.min(11, lines.length);
+          const HALF_COUNT = Math.floor(COUNT / 2);
+          const sIdx = Math.min(Math.max(0, lineNo - HALF_COUNT), lines.length - COUNT);
+          const focus = lines.slice(sIdx, sIdx + COUNT)
+              .map((line, i) => {
+                const lIdx = i + sIdx;
+                if (lIdx !== lineNo) {
+                  return `${lIdx}:\t${line}`;
+                } else {
+                  return `>>>\t${line}`;
+                }
+              });
+
+          const withContext = `${fromError}:\n${focus.join('\n')}`;
+          throw new Error(withContext);
+        } else {
+          // in prod, rethrow e
+          throw e;
+        }
+      }
+    },
+  }));
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(express.static(path.join(__dirname, 'public')));
 

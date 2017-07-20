@@ -233,6 +233,60 @@ describe('score', () => {
 
   });
 
+  it('should fail to add malformed json to a session on /score/<id> POST', done => {
+    const bad_data = `{
+      "data": [{
+        "objectId": "Corpus Callosum(Clone)",
+        "actual": {
+          "x": -5.558823108673096,
+          "y": 0.9352943897247315,
+          "zoom": -2.799999952316284,
+          "alpha": 85.93802642822266,
+          "beta": 236.56591796875,
+          "gamma": 327.074951171875
+        },
+        "expected": {
+          "x": -5.670246601104736,
+          "y": 0.5864675045013428,
+          "zoom": -2.9583325386047365,
+          "alpha": 85.91706848144531,
+          "beta": 236.5658721923828,
+          "gamma": 326.9389343261719
+        },
+        "objectId": "CaudateNuc(Clone)",
+        "actual": {
+          "x": -6.194118022918701,
+          "y": -0.9705884456634522,
+          "zoom": -2.799999952316284,
+          "alpha": 85.9170150756836,
+          "beta": 236.56597900390626,
+          "gamma": 326.93902587890627
+        },
+        "expected": {
+          "x": -5.989668846130371,
+          "y": -1.3292661905288697,
+          "zoom": -3.0233073234558107,
+          "alpha": 85.9170150756836,
+          "beta": 236.56597900390626,
+          "gamma": 326.93902587890627
+        }
+      }]
+    }`;
+
+    chai.request(app)
+        .post(`/score/${uuid}`)
+        .type('json') // manual spec required
+        .send(bad_data)
+        .end((err, res) => {
+          res.should.have.status(403);
+
+          res.text.should.match(/Duplicate key &#39;objectId&#39; on line 20:/);
+
+          done();
+        });
+
+  });
+
   it('After an error, correct requests should pass /score/<id> POST', done => {
 
     let bad_data = _.cloneDeep(GOOD_DATA);
