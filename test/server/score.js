@@ -226,7 +226,7 @@ describe('score', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
+        res.text.should.match(/"alpha" is required/);
 
         done();
       });
@@ -236,7 +236,7 @@ describe('score', () => {
   it('After an error, correct requests should pass /score/<id> POST', done => {
 
     let bad_data = _.cloneDeep(GOOD_DATA);
-    delete bad_data.data[0]['expected']['x'];
+    bad_data.data[0]['expected']['x'] = 'asdf';
 
     chai.request(app)
       .post(`/score/${uuid}`)
@@ -244,7 +244,7 @@ describe('score', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
+        res.text.should.match(/"x" must be a number/);
 
         chai.request(app)
           .post(`/score/${uuid}`)

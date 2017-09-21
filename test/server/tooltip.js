@@ -236,7 +236,7 @@ describe('tooltip', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: CHECK constraint failed:/);
+        res.text.should.match(/"start" is required/);
 
         done();
       });
@@ -246,7 +246,7 @@ describe('tooltip', () => {
   it('After an error, correct requests should pass /tooltip/<id> POST', done => {
 
     let bad_data = _.cloneDeep(GOOD_DATA);
-    delete bad_data.data[0]['start'];
+    bad_data.data[0]['asdf'] = moment(moment.now()).toISOString();
 
     chai.request(app)
       .post(`/tooltip/${uuid}`)
@@ -254,7 +254,7 @@ describe('tooltip', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: CHECK constraint failed:/);
+        res.text.should.match(/"asdf" is not allowed/);
 
         chai.request(app)
           .post(`/tooltip/${uuid}`)

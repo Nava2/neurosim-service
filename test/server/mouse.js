@@ -73,7 +73,7 @@ describe('mouse', function() {
       }, {
         "timestamp": START_TIME.clone().add(4, 'm'),
         "objectId": "button_id",
-        "downUp": 0
+        "downUp": 3
       }
     ]
   };
@@ -200,7 +200,7 @@ describe('mouse', function() {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
+        res.text.should.match(/"timestamp" is required/);
 
         done();
       });
@@ -218,7 +218,7 @@ describe('mouse', function() {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: NOT NULL constraint failed:/);
+        res.text.should.match(/"timestamp" is required/);
 
         chai.request(app)
           .post(`/mouse/${uuid}`)

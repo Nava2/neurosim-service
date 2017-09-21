@@ -7,6 +7,7 @@ const logger = require('morgan');
 const bodyParser = require('body-parser');
 
 const cors = require('cors');
+const Joi = require('joi');
 
 const w = require('winston');
 
@@ -22,6 +23,35 @@ const _ = require('lodash');
 const dblib = require(__dirname + '/../lib/db')(w);
 
 // Init the express api
+
+
+const OBJECT_ID_SCHEMA = Joi.string().min(2)
+  .description('Object identifier interacted with.')
+  .required();
+
+const SPATIAL_POSITION_SCHEMA = Joi.object({
+  'x': Joi.number()
+    .description('X position')
+    .required(),
+  'y': Joi.number()
+    .description('Y position')
+    .required(),
+  'zoom': Joi.number()
+    .description('Zoom position')
+    .required(),
+  'alpha': Joi.number()
+    .description('Camera alpha angle')
+    .required(),
+  'beta': Joi.number()
+    .description('Camera beta angle')
+    .required(),
+  'gamma': Joi.number()
+    .description('Camera gamma angle')
+    .required(),
+}).required();
+
+const TIMESTAMP_SCHEMA = Joi.date().iso()
+  .required();
 
 module.exports = (argv, postInit) => {
 
@@ -52,98 +82,169 @@ module.exports = (argv, postInit) => {
 
     app.set('db', db);
 
+    const SESSION_START_SPEC = Joi.object({
+      'userId': Joi.string().regex(/^[a-zA-Z]{2,6}\d*$/)
+        .description('User UWO ID.')
+        .lowercase()
+        .trim()
+        .required(),
+      'modelId': Joi.string().min(1)
+        .description('Model name')
+        .lowercase()
+        .trim()
+        .required(),
+      'start': TIMESTAMP_SCHEMA.description('Start of the session'),
+    });
     app.options('/session/new');
     app.post('/session/new', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
-      const userId = req.body.userId.toLowerCase().trim();
-      const startTime = moment(req.body.start.trim()).valueOf();
-      const modelId = req.body.modelId.toLowerCase().trim();
-
-      let meta = {
-        userId: userId,
-        start: startTime,
-        modelId: modelId
-      };
-
-      db.session.create(meta, (err, uuid) => {
+      Joi.validate(req.body, SESSION_START_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        w.info(`Created new session: ${uuid}`);
-        return res.send(uuid);
+        const { userId, modelId } = body;
+        const start = moment(body.start).valueOf();
+
+        let meta = {
+          userId,
+          start,
+          modelId,
+        };
+
+        db.session.create(meta, (err, uuid) => {
+          if (err) {
+            return res.status(403).send(err.message);
+          }
+
+          w.info(`Created new session: ${uuid}`);
+          return res.send(uuid);
+        });
       });
     });
 
+    const SESSION_END_SPEC = Joi.object({
+      'end': TIMESTAMP_SCHEMA.description('End time of the session'),
+    });
     app.options('/session/end/:uuid');
     app.post('/session/end/:uuid', (req, res) => {
       req.accepts('json');
       res.type('text');
 
       const sessionId = req.params.uuid;
-      let end_time;
-      if (_.isString(req.body.end)) {
-        end_time = moment(req.body.end.trim());
-      } else if (_.isInteger(req.body.end)) {
-        end_time = moment(req.body.end);
-      }
 
-      if (!end_time) {
-        return res.status(403).send(`No end-time specified.`);
-      }
-
-      db.session.check_end(sessionId, end_time, err => {
+      Joi.validate(req.body, SESSION_END_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        db.session.end(sessionId, end_time, err => {
+        const endTime = moment(req.body.end);
+
+        db.session.check_end(sessionId, endTime, err => {
           if (err) {
             return res.status(403).send(err.message);
           }
 
-          return res.send(sessionId);
+          db.session.end(sessionId, endTime, err => {
+            if (err) {
+              return res.status(403).send(err.message);
+            }
+
+            return res.send(sessionId);
+          });
         });
       });
+
+
     });
 
-
+    const SPATIAL_SPEC = Joi.object({
+      data: Joi.array()
+        .description('Array of data entries for spatial input')
+        .items(SPATIAL_POSITION_SCHEMA.concat(Joi.object({
+          'objectId': OBJECT_ID_SCHEMA,
+          'start': TIMESTAMP_SCHEMA.description('Start time'),
+          'end': TIMESTAMP_SCHEMA.description('End time'),
+        }))).required(),
+    });
     app.options('/spatial/:uuid');
     app.post('/spatial/:uuid', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
       const sessionId = req.params.uuid;
-      const data = req.body.data;
-
-      db.spatial.add(sessionId, data, err => {
+      Joi.validate(req.body, SPATIAL_SPEC, (err, body) => {
         if (err) {
-          w.error(err);
           return res.status(403).send(err.message);
         }
 
-        return res.send(`${data.length}`);
+        db.spatial.add(sessionId, body.data, err => {
+          if (err) {
+            w.error(err);
+            return res.status(403).send(err.message);
+          }
+
+          return res.send(`${body.data.length}`);
+        });
       });
     });
 
+    // Joi schema for Score data
+    const SCORE_SPEC = Joi.object({
+      data: Joi.array()
+        .description('Array of data entries for score inputs')
+        .items(Joi.object({
+          'objectId': OBJECT_ID_SCHEMA,
+          'actual': SPATIAL_POSITION_SCHEMA.description('Actual score position'),
+          'expected': SPATIAL_POSITION_SCHEMA.description('Expected score position'),
+        })).required(),
+    }).description('Tooltip Data');
     app.options('/score/:uuid');
     app.post('/score/:uuid', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
       const sessionId = req.params.uuid;
-      const data = req.body.data;
-
-      db.score.add(sessionId, data, err => {
+      Joi.validate(req.body, SCORE_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        return res.send(`${data.length}`);
+        db.score.add(sessionId, body.data, err => {
+          if (err) {
+            return res.status(403).send(err.message);
+          }
+
+          return res.send(`${body.data.length}`);
+        });
       });
+
     });
+
+    // Joi schema for Tooltip data
+    const TOOLTIP_SPEC = Joi.object({
+      data: Joi.array()
+        .description('Array of data entries for tooltip inputs')
+        .items(Joi.object({
+          'start': TIMESTAMP_SCHEMA.description('Time the event started'),
+          'end': TIMESTAMP_SCHEMA.description('Time the event ended'),
+          'start_x': Joi.number()
+            .description('Starting X position')
+            .required(),
+          'start_y': Joi.number()
+            .description('Starting Y position')
+            .required(),
+          'end_x': Joi.number()
+            .description('Starting X position')
+            .required(),
+          'end_y': Joi.number()
+            .description('Starting Y position')
+            .required(),
+          'objectId': OBJECT_ID_SCHEMA,
+        })).required(),
+    }).description('Tooltip Data');
 
     app.options('/tooltip/:uuid');
     app.post('/tooltip/:uuid', (req, res) => {
@@ -151,52 +252,61 @@ module.exports = (argv, postInit) => {
       res.type('text');
 
       const sessionId = req.params.uuid;
-      const data = req.body.data;
 
-      db.tooltip.add(sessionId, data, err => {
+      Joi.validate(req.body, TOOLTIP_SPEC, (err, body) => {
         if (err) {
-          w.error(err);
           return res.status(403).send(err.message);
         }
 
-        return res.send(`${data.length}`);
+        const data = body.data;
+        db.tooltip.add(sessionId, data, err => {
+          if (err) {
+            w.error(err);
+            return res.status(403).send(err.message);
+          }
+
+          return res.send(`${data.length}`);
+        });
       });
     });
 
-
+    // Joi schema for Mouse data
+    const MOUSE_SPEC = Joi.object({
+      data: Joi.array()
+        .description('Array of data entries for mouse inputs')
+        .items(Joi.object({
+          'timestamp': TIMESTAMP_SCHEMA
+            .description('Time the event occurred'),
+          'objectId': Joi.string().min(3)
+            .description('Object identifier interacted with.')
+            .required(),
+          'downUp': Joi.number().positive()
+            .description('Mouse action performed.')
+            .required()
+        })).required(),
+    }).description('Mouse Data');
     app.options('/mouse/:uuid');
     app.post('/mouse/:uuid', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
       const sessionId = req.params.uuid;
-      const data = req.body.data;
 
-      db.mouse.add(sessionId, data, err => {
+      Joi.validate(req.body, MOUSE_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        return res.send(`${data.length}`);
+        const data = body.data;
+
+        db.mouse.add(sessionId, data, err => {
+          if (err) {
+            return res.status(403).send(err.message);
+          }
+
+          return res.send(`${data.length}`);
+        });
       });
-    });
-
-    app.options('/score/:uuid');
-    app.post('/score/:uuid', (req, res) => {
-      req.accepts('application/json');
-      res.type('text');
-
-      const sessionId = req.params.uuid;
-      const data = req.body.data;
-
-      db.mouse.add(sessionId, data, err => {
-        if (err) {
-          return res.status(403).send(err.message);
-        }
-
-        return res.send(`${data.length}`);
-      });
-
     });
 
     // catch 404 and forward to error handler
@@ -260,7 +370,7 @@ module.exports = (argv, postInit) => {
 
     if (argv.purge) {
       db.purge(err => {
-        if (err && err.code != 'ENOENT') {
+        if (err && err.code !== 'ENOENT') {
           return next(err, null);
         }
 
@@ -268,7 +378,7 @@ module.exports = (argv, postInit) => {
       });
     } else if (argv.debug) {
       db.purge(err => {
-        if (err && err.code != 'ENOENT') {
+        if (err && err.code !== 'ENOENT') {
           return next(err, null);
         }
 
