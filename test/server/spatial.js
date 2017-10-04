@@ -256,7 +256,7 @@ describe('spatial', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: CHECK constraint failed:/);
+        res.text.should.match(/"start" is required/);
 
         done();
       });
@@ -266,7 +266,7 @@ describe('spatial', () => {
   it('After an error, correct requests should pass /spatial/<id> POST', done => {
 
     let bad_data = _.cloneDeep(GOOD_DATA);
-    delete bad_data.data[0]['start'];
+    bad_data.data[0]['start'] = 'asdf';
 
     chai.request(app)
       .post(`/spatial/${uuid}`)
@@ -274,7 +274,7 @@ describe('spatial', () => {
       .end((err, res) => {
         res.should.have.status(403);
 
-        res.text.should.match(/^SQLITE_CONSTRAINT: CHECK constraint failed:/);
+        res.text.should.match(/"start" must be a valid ISO 8601 date/);
 
         chai.request(app)
           .post(`/spatial/${uuid}`)
