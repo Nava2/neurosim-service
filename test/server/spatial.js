@@ -70,56 +70,59 @@ describe('spatial', () => {
     });
   });
 
-  const GOOD_DATA = {
-    "data": [
-      {
-        "objectId": "2d",
-        "start": START_TIME.clone().add(1, 'm'),
-        "end": START_TIME.clone().add(1, 'm').add(23, 's'),
-        "x": 20.0,
-        "y": 23.4,
-        "zoom": -1.0,
-        "alpha": 234.0,
-        "beta": 234.0,
-        "gamma": 234.0
-      },
+  function sampleData() {
+    return {
+      uuid,
+      "data": [
+        {
+          "objectId": "2d",
+          "start": START_TIME.clone().add(1, 'm'),
+          "end": START_TIME.clone().add(1, 'm').add(23, 's'),
+          "x": 20.0,
+          "y": 23.4,
+          "zoom": -1.0,
+          "alpha": 234.0,
+          "beta": 234.0,
+          "gamma": 234.0
+        },
 
-      {
-        "objectId": "3d",
-        "start": START_TIME.clone().add(1, 'm'),
-        "end": START_TIME.clone().add(1, 'm').add(23, 's'),
-        "x": 20.0,
-        "y": 23.4,
-        "zoom": -1.0,
-        "alpha": 234.0,
-        "beta": 234.0,
-        "gamma": 234.0
-      },
+        {
+          "objectId": "3d",
+          "start": START_TIME.clone().add(1, 'm'),
+          "end": START_TIME.clone().add(1, 'm').add(23, 's'),
+          "x": 20.0,
+          "y": 23.4,
+          "zoom": -1.0,
+          "alpha": 234.0,
+          "beta": 234.0,
+          "gamma": 234.0
+        },
 
-      {
-        "objectId": "3d",
-        "start": START_TIME.clone().add(3, 'm'),
-        "end": START_TIME.clone().add(3, 'm').add(23, 's'),
-        "x": 20.0,
-        "y": 23.4,
-        "zoom": 32.4,
-        "alpha": 234.0,
-        "beta": 234.0,
-        "gamma": 234.0
-      },
-      {
-        "objectId": "3d",
-        "start": START_TIME.clone().add(3, 'm').add(23, 's'),
-        "end": START_TIME.clone().add(5, 'm'),
-        "x": 20.0,
-        "y": 23.4,
-        "zoom": 3.4,
-        "alpha": 234.0,
-        "beta": 234.0,
-        "gamma": 234.0
-      }
-    ]
-  };
+        {
+          "objectId": "3d",
+          "start": START_TIME.clone().add(3, 'm'),
+          "end": START_TIME.clone().add(3, 'm').add(23, 's'),
+          "x": 20.0,
+          "y": 23.4,
+          "zoom": 32.4,
+          "alpha": 234.0,
+          "beta": 234.0,
+          "gamma": 234.0
+        },
+        {
+          "objectId": "3d",
+          "start": START_TIME.clone().add(3, 'm').add(23, 's'),
+          "end": START_TIME.clone().add(5, 'm'),
+          "x": 20.0,
+          "y": 23.4,
+          "zoom": 3.4,
+          "alpha": 234.0,
+          "beta": 234.0,
+          "gamma": 234.0
+        }
+      ]
+    };
+  }
 
   function verify_good_data(check, done) {
     dbHandle.all('SELECT * FROM spatial_data WHERE session_id=? ORDER BY start_ms, object_id', uuid,
@@ -150,23 +153,25 @@ describe('spatial', () => {
 
   it('should add spatial data points to a session on /spatial/<id> POST', done => {
     chai.request(app)
-      .post(`/spatial/${uuid}`)
-      .send(GOOD_DATA)
+      .post(`/spatial`)
+      .send(sampleData())
       .end((err, res) => {
         res.should.have.status(200);
-        res.text.should.equal("" + GOOD_DATA.data.length);
+        res.text.should.equal("" + sampleData().data.length);
 
-        verify_good_data(GOOD_DATA, done);
+        verify_good_data(sampleData(), done);
       });
   });
 
   it('should fail to add data points to a non-existant session on /spatial/<id> POST', done => {
     // uuid that doesn't exist
     const bad_uuid = require('uuid').v1();
+    const bad_data = sampleData();
+    bad_data.uuid = bad_uuid;
 
     chai.request(app)
-      .post('/spatial/' + bad_uuid)
-      .send(GOOD_DATA)
+      .post('/spatial')
+      .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
         res.text.should.equal(`Session ID (${bad_uuid}) does not exist.`);
@@ -177,11 +182,11 @@ describe('spatial', () => {
 
   it('should fail to add non-unique data points to a session on /spatial/<id> POST', done => {
     // make bad data with a duplicate value
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = sampleData();
     bad_data.data.push(bad_data.data[0]);
 
     chai.request(app)
-      .post(`/spatial/${uuid}`)
+      .post(`/spatial`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -197,8 +202,9 @@ describe('spatial', () => {
 
     // Close the session via /session/end/:uuid
     chai.request(app)
-      .post(`/session/end/${uuid}`)
+      .post(`/session/end`)
       .send({
+        uuid,
         end: START_TIME.clone().add(10, 's')
       })
       .end((err, res) => {
@@ -207,8 +213,8 @@ describe('spatial', () => {
 
         // now try to add mouse data
         chai.request(app)
-          .post(`/spatial/${uuid}`)
-          .send(GOOD_DATA)
+          .post(`/spatial`)
+          .send(sampleData())
           .end((err, res) => {
             res.should.have.status(403);
 
@@ -221,10 +227,11 @@ describe('spatial', () => {
 
   it('should add data points to an ended session on /spatial/<id> POST if they are before end', done => {
 
-    // Close the session via /session/end/:uuid
+    // Close the session via /session/end
     chai.request(app)
-      .post(`/session/end/${uuid}`)
+      .post(`/session/end`)
       .send({
+        uuid,
         end: START_TIME.clone().add(1, 'h')
       })
       .end((err, res) => {
@@ -233,12 +240,12 @@ describe('spatial', () => {
 
         // now try to add mouse data
         chai.request(app)
-          .post(`/spatial/${uuid}`)
-          .send(GOOD_DATA)
+          .post(`/spatial`)
+          .send(sampleData())
           .end((err, res) => {
             res.should.have.status(200);
 
-            res.text.should.equal(`${GOOD_DATA.data.length}`);
+            res.text.should.equal(`${sampleData().data.length}`);
 
             done();
           });
@@ -247,11 +254,11 @@ describe('spatial', () => {
 
   it('should fail to add malformed data to a session on /spatial/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = sampleData();
     delete bad_data.data[0]['start'];
 
     chai.request(app)
-      .post(`/spatial/${uuid}`)
+      .post(`/spatial`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -265,11 +272,11 @@ describe('spatial', () => {
 
   it('After an error, correct requests should pass /spatial/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = sampleData();
     bad_data.data[0]['start'] = 'asdf';
 
     chai.request(app)
-      .post(`/spatial/${uuid}`)
+      .post(`/spatial`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -277,13 +284,13 @@ describe('spatial', () => {
         res.text.should.match(/"start" must be a valid ISO 8601 date/);
 
         chai.request(app)
-          .post(`/spatial/${uuid}`)
-          .send(GOOD_DATA)
+          .post(`/spatial`)
+          .send(sampleData())
           .end((err, res) => {
             res.should.have.status(200);
-            res.text.should.equal("" + GOOD_DATA.data.length);
+            res.text.should.equal("" + sampleData().data.length);
 
-            verify_good_data(GOOD_DATA, done);
+            verify_good_data(sampleData(), done);
           });
       });
 
@@ -292,11 +299,11 @@ describe('spatial', () => {
   it('will not add overlapping time interval data', done => {
 
     // Force a time overlap
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = sampleData();
     bad_data.data[2].start = bad_data.data[1].start.add(6, 's');
 
     chai.request(app)
-      .post(`/spatial/${uuid}`)
+      .post(`/spatial`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -309,6 +316,7 @@ describe('spatial', () => {
 
   it('multiple users are the same time should not be problematic', done => {
     let data = {
+      uuid,
       "data": [{
         "x": 0.0,
         "y": 0.0,
@@ -336,15 +344,18 @@ describe('spatial', () => {
 
     let next = () => {
       chai.request(app)
-        .post(`/spatial/${uuid}`)
+        .post(`/spatial`)
         .send(data)
         .end((err, res) => {
           res.should.have.status(200);
           res.text.should.equal("" + data.data.length);
 
+          const newData = _.cloneDeep(data);
+          newData.uuid = otherUUID;
+
           chai.request(app)
-            .post(`/spatial/${otherUUID}`)
-            .send(data)
+            .post(`/spatial`)
+            .send(newData)
             .end((err, res) => {
               res.should.have.status(200);
               res.text.should.equal("" + data.data.length);

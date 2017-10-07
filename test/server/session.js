@@ -116,8 +116,9 @@ describe('session', function() {
         let uuid = res.text;
 
         chai.request(app)
-          .post('/session/end/' + uuid)
+          .post('/session/end')
           .send({
+            uuid,
             end: end_time
           })
           .end((err, res) => {

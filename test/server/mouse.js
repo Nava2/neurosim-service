@@ -64,26 +64,29 @@ describe('mouse', function() {
     });
   });
 
-  const GOOD_DATA = {
-    "data": [
-      {
-        "timestamp": START_TIME.clone().add(2, 'm'),
-        "objectId": "button_id",
-        "downUp": 4,
-      }, {
-        "timestamp": START_TIME.clone().add(4, 'm'),
-        "objectId": "button_id",
-        "downUp": 0,
-      }
-    ]
-  };
+  function GOOD_DATA() {
+    return {
+      "uuid": uuid,
+      "data": [
+        {
+          "timestamp": START_TIME.clone().add(2, 'm'),
+          "objectId": "button_id",
+          "downUp": 4,
+        }, {
+          "timestamp": START_TIME.clone().add(4, 'm'),
+          "objectId": "button_id",
+          "downUp": 0,
+        }
+      ]
+    };
+  }
 
   function verify_good_data(done) {
     dbHandle.all('SELECT * FROM mouse_data WHERE session_id=? ORDER BY time_ms', uuid,
       (err, rows) => {
         if (err) throw err;
 
-        _.zip(rows, GOOD_DATA.data).forEach(arr => {
+        _.zip(rows, GOOD_DATA().data).forEach(arr => {
           let a = arr[0];
           let e = arr[1];
 
@@ -98,8 +101,8 @@ describe('mouse', function() {
 
   it('should add mouse data points to a session on /mouse/<id> POST', done => {
     chai.request(app)
-      .post('/mouse/' + uuid)
-      .send(GOOD_DATA)
+      .post('/mouse')
+      .send(GOOD_DATA())
       .end((err, res) => {
         res.should.have.status(200);
         res.text.should.equal("2");
@@ -112,15 +115,15 @@ describe('mouse', function() {
     let end_time = moment(sessionData.start).add(5, 'day');
 
     chai.request(app)
-      .post('/session/end/' + uuid)
-      .send({ end: end_time })
+      .post('/session/end')
+      .send({ uuid: uuid, end: end_time })
       .end((err, res) => {
         res.should.have.status(200);
         res.text.should.equal(uuid);
 
         chai.request(app)
-          .post('/mouse/' + uuid)
-          .send(GOOD_DATA)
+          .post('/mouse')
+          .send(GOOD_DATA())
           .end((err, res) => {
             res.should.have.status(200);
             res.text.should.equal("2");
@@ -133,10 +136,12 @@ describe('mouse', function() {
   it('should fail to add data points to a non-existant session on /mouse/<id> POST', done => {
     // uuid that doesn't exist
     const bad_uuid = require('uuid').v1();
+    const bad_data = GOOD_DATA();
+    bad_data.uuid = bad_uuid;
 
     chai.request(app)
-      .post('/mouse/' + bad_uuid)
-      .send(GOOD_DATA)
+      .post('/mouse')
+      .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
         res.text.should.equal(`Session ID (${bad_uuid}) does not exist.`);
@@ -147,11 +152,11 @@ describe('mouse', function() {
 
   it('should fail to add non-unique data points to a session on /mouse/<id> POST', done => {
     // make bad data with a duplicate value
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = GOOD_DATA();
     bad_data.data.push(bad_data.data[0]);
 
     chai.request(app)
-      .post('/mouse/' + uuid)
+      .post('/mouse')
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -168,8 +173,9 @@ describe('mouse', function() {
     const end_time = START_TIME.clone().add(1, 's');
 
     chai.request(app)
-      .post('/session/end/' + uuid)
+      .post('/session/end')
       .send({
+        uuid: uuid,
         end: end_time
       })
       .end((err, res) => {
@@ -178,8 +184,8 @@ describe('mouse', function() {
 
         // now try to add mouse data
         chai.request(app)
-          .post('/mouse/' + uuid)
-          .send(GOOD_DATA)
+          .post('/mouse')
+          .send(GOOD_DATA())
           .end((err, res) => {
             res.should.have.status(403);
             res.text.should.equal(`Tried to insert data that is older than session (ID: ${uuid}).`);
@@ -191,11 +197,11 @@ describe('mouse', function() {
 
   it('should fail to add malformed data to a session on /mouse/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = GOOD_DATA();
     delete bad_data.data[0]['timestamp'];
 
     chai.request(app)
-      .post(`/mouse/${uuid}`)
+      .post(`/mouse`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -208,11 +214,11 @@ describe('mouse', function() {
 
   it('should fail to add data with negative mouse buttons to a session on /mouse/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = GOOD_DATA();
     bad_data.data[0]['downUp'] = -1;
 
     chai.request(app)
-      .post(`/mouse/${uuid}`)
+      .post(`/mouse`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -226,11 +232,11 @@ describe('mouse', function() {
 
   it('After an error, correct requests should pass /mouse/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = GOOD_DATA();
     delete bad_data.data[0]['timestamp'];
 
     chai.request(app)
-      .post(`/mouse/${uuid}`)
+      .post(`/mouse`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -238,8 +244,8 @@ describe('mouse', function() {
         res.text.should.match(/"timestamp" is required/);
 
         chai.request(app)
-          .post(`/mouse/${uuid}`)
-          .send(GOOD_DATA)
+          .post(`/mouse`)
+          .send(GOOD_DATA())
           .end((err, res) => {
             res.should.have.status(200);
             res.text.should.equal("2");

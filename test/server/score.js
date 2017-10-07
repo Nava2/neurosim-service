@@ -63,60 +63,63 @@ describe('score', () => {
     });
   });
 
-  const GOOD_DATA = {
-    "data": [
-      {
-        "objectId": "p1",
+  function GOOD_DATA() {
+    return {
+      "uuid": uuid,
+      "data": [
+        {
+          "objectId": "p1",
 
-        "actual": {
-          "x": 20.0,
-          "y": 23.4,
-          "zoom": -1.0,
-          "alpha": 234.0,
-          "beta": 234.0,
-          "gamma": 234.0,
+          "actual": {
+            "x": 20.0,
+            "y": 23.4,
+            "zoom": -1.0,
+            "alpha": 234.0,
+            "beta": 234.0,
+            "gamma": 234.0,
+          },
+
+          "expected": {
+            "x": 20.0,
+            "y": 23.4,
+            "zoom": -1.0,
+            "alpha": 234.0,
+            "beta": 234.0,
+            "gamma": 234.0
+          }
         },
 
-        "expected": {
-          "x": 20.0,
-          "y": 23.4,
-          "zoom": -1.0,
-          "alpha": 234.0,
-          "beta": 234.0,
-          "gamma": 234.0
+        {
+          "objectId": "p2",
+
+          "actual": {
+            "x": 20.0,
+            "y": 23.4,
+            "zoom": -1.0,
+            "alpha": 234.0,
+            "beta": 234.0,
+            "gamma": 234.0,
+          },
+
+          "expected": {
+            "x": 20.0,
+            "y": 23.4,
+            "zoom": -1.0,
+            "alpha": 234.0,
+            "beta": 234.0,
+            "gamma": 234.0
+          }
         }
-      },
-
-      {
-        "objectId": "p2",
-
-        "actual": {
-          "x": 20.0,
-          "y": 23.4,
-          "zoom": -1.0,
-          "alpha": 234.0,
-          "beta": 234.0,
-          "gamma": 234.0,
-        },
-
-        "expected": {
-          "x": 20.0,
-          "y": 23.4,
-          "zoom": -1.0,
-          "alpha": 234.0,
-          "beta": 234.0,
-          "gamma": 234.0
-        }
-      }
-    ]
-  };
+      ]
+    };
+  }
 
   function verify_good_data(done) {
     dbHandle.all('SELECT * FROM score_data WHERE session_id=? ORDER BY object_id', uuid,
       (err, rows) => {
         if (err) throw err;
 
-        _.zip(rows, GOOD_DATA.data).forEach(arr => {
+        _.zip(rows, GOOD_DATA().data).forEach(arr => {
           let a = arr[0];
           let e = arr[1];
 
@@ -147,11 +150,11 @@ describe('score', () => {
 
   it('should add score data points to a session on /score/<id> POST', done => {
     chai.request(app)
-      .post(`/score/${uuid}`)
-      .send(GOOD_DATA)
+      .post(`/score`)
+      .send(GOOD_DATA())
       .end((err, res) => {
         res.should.have.status(200);
-        res.text.should.equal(`${GOOD_DATA.data.length}`);
+        res.text.should.equal(`${GOOD_DATA().data.length}`);
 
         verify_good_data(done);
       });
@@ -161,9 +164,12 @@ describe('score', () => {
     // uuid that doesn't exist
     const bad_uuid = require('uuid').v1();
 
+    const BAD_DATA = _.cloneDeep(GOOD_DATA());
+    BAD_DATA.uuid = bad_uuid;
+
     chai.request(app)
-      .post('/score/' + bad_uuid)
-      .send(GOOD_DATA)
+      .post('/score')
+      .send(BAD_DATA)
       .end((err, res) => {
         res.should.have.status(403);
         res.text.should.equal(`Session ID (${bad_uuid}) does not exist.`);
@@ -174,11 +180,11 @@ describe('score', () => {
 
   it('should fail to add non-unique data points to a session on /score/<id> POST', done => {
     // make bad data with a duplicate value
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = _.cloneDeep(GOOD_DATA());
     bad_data.data.push(bad_data.data[0]);
 
     chai.request(app)
-      .post(`/score/${uuid}`)
+      .post(`/score`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -193,8 +199,9 @@ describe('score', () => {
 
     // Close the session via /session/end/:uuid
     chai.request(app)
-      .post(`/session/end/${uuid}`)
+      .post(`/session/end`)
       .send({
+        uuid: uuid,
         end: START_TIME.clone().add(1, 'h')
       })
       .end((err, res) => {
@@ -203,12 +210,12 @@ describe('score', () => {
 
         // now try to add mouse data
         chai.request(app)
-          .post(`/score/${uuid}`)
-          .send(GOOD_DATA)
+          .post(`/score`)
+          .send(GOOD_DATA())
           .end((err, res) => {
             res.should.have.status(200);
 
-            res.text.should.equal(`${GOOD_DATA.data.length}`);
+            res.text.should.equal(`${GOOD_DATA().data.length}`);
 
             done();
           });
@@ -217,11 +224,11 @@ describe('score', () => {
 
   it('should fail to add malformed data to a session on /score/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = _.cloneDeep(GOOD_DATA());
     delete bad_data.data[0]['expected']['alpha'];
 
     chai.request(app)
-      .post(`/score/${uuid}`)
+      .post(`/score`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -235,6 +242,7 @@ describe('score', () => {
 
   it('should fail to add malformed json to a session on /score/<id> POST', done => {
     const bad_data = `{
+      "uuid": "${uuid}",
       "data": [{
         "objectId": "Corpus Callosum(Clone)",
         "actual": {
@@ -274,13 +282,13 @@ describe('score', () => {
     }`;
 
     chai.request(app)
-        .post(`/score/${uuid}`)
+        .post(`/score`)
         .type('json') // manual spec required
         .send(bad_data)
         .end((err, res) => {
           res.should.have.status(403);
 
-          res.text.should.match(/Duplicate key &#39;objectId&#39; on line 20:/);
+          res.text.should.match(/Duplicate key &#39;objectId&#39; on line 21:/);
 
           done();
         });
@@ -289,11 +297,11 @@ describe('score', () => {
 
   it('After an error, correct requests should pass /score/<id> POST', done => {
 
-    let bad_data = _.cloneDeep(GOOD_DATA);
+    let bad_data = _.cloneDeep(GOOD_DATA());
     bad_data.data[0]['expected']['x'] = 'asdf';
 
     chai.request(app)
-      .post(`/score/${uuid}`)
+      .post(`/score`)
       .send(bad_data)
       .end((err, res) => {
         res.should.have.status(403);
@@ -301,11 +309,11 @@ describe('score', () => {
         res.text.should.match(/"x" must be a number/);
 
         chai.request(app)
-          .post(`/score/${uuid}`)
-          .send(GOOD_DATA)
+          .post(`/score`)
+          .send(GOOD_DATA())
           .end((err, res) => {
             res.should.have.status(200);
-            res.text.should.equal(`${GOOD_DATA.data.length}`);
+            res.text.should.equal(`${GOOD_DATA().data.length}`);
 
             verify_good_data(done);
           });

@@ -56,6 +56,10 @@ const SPATIAL_POSITION_SCHEMA = Joi.object({
 const TIMESTAMP_SCHEMA = Joi.date().iso()
   .required();
 
+const SESSION_ID_SCHEMA = Joi.string().uuid()
+  .required()
+  .description('Session ID');
+
 module.exports = (argv, postInit) => {
 
   let app = express();
@@ -166,21 +170,21 @@ module.exports = (argv, postInit) => {
     });
 
     const SESSION_END_SPEC = Joi.object({
+      'uuid': SESSION_ID_SCHEMA,
       'end': TIMESTAMP_SCHEMA.description('End time of the session'),
     });
-    app.options('/session/end/:uuid');
-    app.post('/session/end/:uuid', (req, res) => {
+    app.options('/session/end');
+    app.post('/session/end', (req, res) => {
       req.accepts('json');
       res.type('text');
-
-      const sessionId = req.params.uuid;
 
       Joi.validate(req.body, SESSION_END_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
-        const endTime = moment(req.body.end);
+        const sessionId = body.uuid;
+        const endTime = moment(body.end);
 
         db.session.check_end(sessionId, endTime, err => {
           if (err) {
@@ -201,6 +205,7 @@ module.exports = (argv, postInit) => {
     });
 
     const SPATIAL_SPEC = Joi.object({
+      uuid: SESSION_ID_SCHEMA,
       data: Joi.array()
         .description('Array of data entries for spatial input')
         .items(SPATIAL_POSITION_SCHEMA.concat(Joi.object({
@@ -209,17 +214,17 @@ module.exports = (argv, postInit) => {
           'end': TIMESTAMP_SCHEMA.description('End time'),
         }))).required(),
     });
-    app.options('/spatial/:uuid');
-    app.post('/spatial/:uuid', (req, res) => {
+    app.options('/spatial');
+    app.post('/spatial', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
-      const sessionId = req.params.uuid;
       Joi.validate(req.body, SPATIAL_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
+        const sessionId = body.uuid;
         db.spatial.add(sessionId, body.data, err => {
           if (err) {
             w.error(err);
@@ -233,6 +238,7 @@ module.exports = (argv, postInit) => {
 
     // Joi schema for Score data
     const SCORE_SPEC = Joi.object({
+      uuid: SESSION_ID_SCHEMA,
       data: Joi.array()
         .description('Array of data entries for score inputs')
         .items(Joi.object({
@@ -240,18 +246,18 @@ module.exports = (argv, postInit) => {
           'actual': SPATIAL_POSITION_SCHEMA.description('Actual score position'),
           'expected': SPATIAL_POSITION_SCHEMA.description('Expected score position'),
         })).required(),
-    }).description('Tooltip Data');
-    app.options('/score/:uuid');
-    app.post('/score/:uuid', (req, res) => {
+    }).description('Score Data');
+    app.options('/score');
+    app.post('/score', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
-      const sessionId = req.params.uuid;
       Joi.validate(req.body, SCORE_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
+        const sessionId = body.uuid;
         db.score.add(sessionId, body.data, err => {
           if (err) {
             return res.status(403).send(err.message);
@@ -265,6 +271,7 @@ module.exports = (argv, postInit) => {
 
     // Joi schema for Tooltip data
     const TOOLTIP_SPEC = Joi.object({
+      uuid: SESSION_ID_SCHEMA,
       data: Joi.array()
         .description('Array of data entries for tooltip inputs')
         .items(Joi.object({
@@ -286,12 +293,11 @@ module.exports = (argv, postInit) => {
         })).required(),
     }).description('Tooltip Data');
 
-    app.options('/tooltip/:uuid');
-    app.post('/tooltip/:uuid', (req, res) => {
+    app.options('/tooltip');
+    app.post('/tooltip', (req, res) => {
       req.accepts('application/json');
       res.type('text');
 
-      const sessionId = req.params.uuid;
 
       Joi.validate(req.body, TOOLTIP_SPEC, (err, body) => {
         if (err) {
@@ -299,6 +305,7 @@ module.exports = (argv, postInit) => {
         }
 
         const data = body.data;
+        const sessionId = body.uuid;
         db.tooltip.add(sessionId, data, err => {
           if (err) {
             w.error(err);
@@ -312,6 +319,7 @@ module.exports = (argv, postInit) => {
 
     // Joi schema for Mouse data
     const MOUSE_SPEC = Joi.object({
+      uuid: SESSION_ID_SCHEMA,
       data: Joi.array()
         .description('Array of data entries for mouse inputs')
         .items(Joi.object({
@@ -325,18 +333,18 @@ module.exports = (argv, postInit) => {
             .required()
         })).required(),
     }).description('Mouse Data');
-    app.options('/mouse/:uuid');
-    app.post('/mouse/:uuid', (req, res) => {
+    app.options('/mouse');
+    app.post('/mouse', (req, res) => {
+
       req.accepts('application/json');
       res.type('text');
-
-      const sessionId = req.params.uuid;
 
       Joi.validate(req.body, MOUSE_SPEC, (err, body) => {
         if (err) {
           return res.status(403).send(err.message);
         }
 
+        const sessionId = body.uuid;
         const data = body.data;
 
         db.mouse.add(sessionId, data, err => {
