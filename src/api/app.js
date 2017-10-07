@@ -320,7 +320,7 @@ module.exports = (argv, postInit) => {
           'objectId': Joi.string().min(3)
             .description('Object identifier interacted with.')
             .required(),
-          'downUp': Joi.number().positive()
+          'downUp': Joi.number().min(0)
             .description('Mouse action performed.')
             .required()
         })).required(),

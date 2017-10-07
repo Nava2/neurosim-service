@@ -69,11 +69,11 @@ describe('mouse', function() {
       {
         "timestamp": START_TIME.clone().add(2, 'm'),
         "objectId": "button_id",
-        "downUp": 1
+        "downUp": 4,
       }, {
         "timestamp": START_TIME.clone().add(4, 'm'),
         "objectId": "button_id",
-        "downUp": 3
+        "downUp": 0,
       }
     ]
   };
@@ -201,6 +201,23 @@ describe('mouse', function() {
         res.should.have.status(403);
 
         res.text.should.match(/"timestamp" is required/);
+
+        done();
+      });
+  });
+
+  it('should fail to add data with negative mouse buttons to a session on /mouse/<id> POST', done => {
+
+    let bad_data = _.cloneDeep(GOOD_DATA);
+    bad_data.data[0]['downUp'] = -1;
+
+    chai.request(app)
+      .post(`/mouse/${uuid}`)
+      .send(bad_data)
+      .end((err, res) => {
+        res.should.have.status(403);
+
+        res.text.should.match(/"downUp" must be larger than or equal to 0/);
 
         done();
       });
