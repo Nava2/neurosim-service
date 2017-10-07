@@ -21,45 +21,29 @@ module.exports = (w) => {
       return next(null, rows.length);
     }
 
-    const finalize = (prev_err) => {
-      stmt.finalize(fin_err => {
-
-        db.exec("COMMIT TRANSACTION", trans_err => {
-          let errs = _.compact([prev_err, fin_err, trans_err]);
-
-          let out_err = null;
-          if (errs.length > 0) {
-            if (errs.length == 1) {
-              out_err = errs[0];
-            } else {
-              out_err = new Error(_.reduce(errs, (r, e, i) => (r + `\t${i}) ${e.message}\n`), 'Multiple errors:\n'));
-            }
-          }
-
-          return next(out_err, rows.length);
+    let finalized = false;
+    const finalize = (err) => {
+      if (!finalized) {
+        stmt.finalize((f_err) => {
+          finalized = true;
+          next(err || f_err, rows.length);
         });
-      });
+      }
     };
 
-    let run_stmt = (index) => {
-      let r = rows[index];
-      stmt.run(r, err => {
-        if (err) return finalize(err);
-
-        if (index < rows.length - 1) {
-          return run_stmt(index + 1);
-        } else {
-          return finalize();
-        }
-      });
+    const handleErr = (err) => {
+      if (err) {
+        return finalize(err);
+      }
     };
-
     db.serialize(() => {
-      db.exec("BEGIN TRANSACTION", err => {
-        if (err) return finalize(err);
+      db.exec("BEGIN TRANSACTION", handleErr);
 
-        run_stmt(0);
-      });
+      for (const row of rows) {
+        stmt.run(row, handleErr);
+      }
+
+      db.exec("COMMIT TRANSACTION", finalize);
     });
   }
 
